@@ -75,6 +75,13 @@ CREATE TABLE IF NOT EXISTS member_activity (
 
 CREATE INDEX IF NOT EXISTS idx_member_activity_chat_msgcount
 ON member_activity(chat_id, msg_count DESC);
+
+CREATE TABLE IF NOT EXISTS member_roles (
+    tg_user_id INTEGER PRIMARY KEY,
+    role TEXT NOT NULL CHECK(role IN ('admin','old','trusted','newbie')) DEFAULT 'newbie',
+    assigned_by_tg_user_id INTEGER,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
 """
 
 
