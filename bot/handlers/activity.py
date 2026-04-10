@@ -3,6 +3,7 @@ from telegram.ext import ContextTypes
 
 from bot.config import Settings
 from bot.repositories.activity import bump_message_activity, get_top_activity
+from bot.repositories.pairs import bump_reply_pair, get_top_pairs
 from bot.services.rbac import has_permission
 
 
@@ -40,6 +41,14 @@ async def track_message_activity(update: Update, context: ContextTypes.DEFAULT_T
         username=update.effective_user.username,
         first_name=update.effective_user.first_name,
     )
+
+    if msg.reply_to_message and msg.reply_to_message.from_user and not msg.reply_to_message.from_user.is_bot:
+        bump_reply_pair(
+            s.sqlite_path,
+            chat_id=update.effective_chat.id,
+            from_uid=update.effective_user.id,
+            to_uid=msg.reply_to_message.from_user.id,
+        )
 
 
 async def show_activity(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:

@@ -76,6 +76,20 @@ CREATE TABLE IF NOT EXISTS member_activity (
 CREATE INDEX IF NOT EXISTS idx_member_activity_chat_msgcount
 ON member_activity(chat_id, msg_count DESC);
 
+CREATE TABLE IF NOT EXISTS reply_pairs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    chat_id INTEGER NOT NULL,
+    from_tg_user_id INTEGER NOT NULL,
+    to_tg_user_id INTEGER NOT NULL,
+    pair_count INTEGER NOT NULL DEFAULT 0,
+    last_reply_at DATETIME,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(chat_id, from_tg_user_id, to_tg_user_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_reply_pairs_chat_count
+ON reply_pairs(chat_id, pair_count DESC);
+
 CREATE TABLE IF NOT EXISTS member_roles (
     tg_user_id INTEGER PRIMARY KEY,
     role TEXT NOT NULL CHECK(role IN ('admin','old','trusted','newbie')) DEFAULT 'newbie',

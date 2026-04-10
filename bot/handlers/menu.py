@@ -22,6 +22,7 @@ def _menu_kb(update: Update, context: ContextTypes.DEFAULT_TYPE, issuer_id: int)
             InlineKeyboardButton("📊 Статистика", callback_data=f"menu:stats:{issuer_id}"),
             InlineKeyboardButton("👥 Актив", callback_data=f"menu:activity:{issuer_id}"),
         ],
+        [InlineKeyboardButton("💬 Топ пар", callback_data=f"menu:pairs:{issuer_id}")],
         [InlineKeyboardButton("📣 Хипиш", callback_data=f"menu:fun_hipish:{issuer_id}")],
         [InlineKeyboardButton("🎭 Развлечения", callback_data=f"menu:fun:{issuer_id}")],
         [InlineKeyboardButton("⚙️ Настройки", callback_data=f"menu:settings:{issuer_id}")],
@@ -103,6 +104,33 @@ async def menu_action(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
             f"Последнее сообщение: {last_at or '—'}",
             reply_markup=_back_kb(issuer_id),
         )
+        return
+
+    if action == "pairs":
+        conn = get_conn(s.sqlite_path)
+        cur = conn.cursor()
+        cur.execute(
+            """
+            SELECT from_tg_user_id, to_tg_user_id, pair_count, last_reply_at
+            FROM reply_pairs
+            WHERE chat_id = ?
+            ORDER BY pair_count DESC, datetime(last_reply_at) DESC
+            LIMIT 10
+            """,
+            (s.main_chat_id,),
+        )
+        rows = cur.fetchall()
+        conn.close()
+
+        if not rows:
+            text = "Пока нет данных по топ-парам (нужны reply-сообщения)."
+        else:
+            lines = ["💬 Топ пар (по reply)", "───────────────────"]
+            for i, (fuid, tuid, cnt, last_at) in enumerate(rows, 1):
+                lines.append(f"{i}. {fuid} → {tuid} | {cnt} | {last_at or '—'}")
+            text = "\n".join(lines)
+
+        await query.edit_message_text(text, reply_markup=_back_kb(issuer_id))
         return
 
     if action == "activity":
