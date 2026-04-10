@@ -24,7 +24,7 @@ def _menu_kb(update: Update, context: ContextTypes.DEFAULT_TYPE, issuer_id: int)
         ],
         [InlineKeyboardButton("💬 Топ пар", callback_data=f"menu:pairs:{issuer_id}")],
         [InlineKeyboardButton("📣 Хипиш", callback_data=f"menu:fun_hipish:{issuer_id}"), InlineKeyboardButton("💥 Дни без драмы", callback_data=f"menu:drama_days:{issuer_id}")],
-        [InlineKeyboardButton("🎭 Развлечения", callback_data=f"menu:fun:{issuer_id}")],
+        [InlineKeyboardButton("🎭 Развлечения", callback_data=f"menu:fun:{issuer_id}"), InlineKeyboardButton("👥 Социалка", callback_data=f"menu:social:{issuer_id}")],
         [InlineKeyboardButton("⚙️ Настройки", callback_data=f"menu:settings:{issuer_id}")],
     ]
 
@@ -80,10 +80,6 @@ async def menu_action(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
     if action == "stats":
         conn = get_conn(s.sqlite_path)
         cur = conn.cursor()
-        cur.execute("SELECT COUNT(*) FROM applications WHERE tg_user_id = ?", (uid,))
-        apps = int(cur.fetchone()[0] or 0)
-        cur.execute("SELECT COUNT(*) FROM applications WHERE tg_user_id = ? AND status='approved'", (uid,))
-        approved = int(cur.fetchone()[0] or 0)
         cur.execute(
             "SELECT msg_count, last_message_at FROM member_activity WHERE chat_id = ? AND tg_user_id = ?",
             (s.main_chat_id, uid),
@@ -98,8 +94,6 @@ async def menu_action(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
             "📊 Твоя статистика\n"
             "───────────────────\n"
             f"Роль: {role}\n"
-            f"Анкет подано: {apps}\n"
-            f"Одобрено: {approved}\n"
             f"Сообщений в чате: {msg_count}\n"
             f"Последнее сообщение: {last_at or '—'}",
             reply_markup=_back_kb(issuer_id),
@@ -297,6 +291,18 @@ async def menu_action(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
         )
         return
 
+    if action == "social":
+        await query.edit_message_text(
+            "👥 Социалка\nВыбери действие:",
+            reply_markup=InlineKeyboardMarkup([
+                [InlineKeyboardButton("⚖️ Friend/Foe стат", callback_data=f"menu:social_ff_stats:{issuer_id}")],
+                [InlineKeyboardButton("🏆 Friend/Foe топ", callback_data=f"menu:social_ff_top:{issuer_id}")],
+                [InlineKeyboardButton("🍾 Бутылочка", callback_data=f"menu:social_bottle:{issuer_id}")],
+                [InlineKeyboardButton("⬅️ В меню", callback_data=f"menu:home:{issuer_id}")],
+            ]),
+        )
+        return
+
     if action == "fun_horoscope":
         from bot.handlers.horoscope import horoscope
 
@@ -304,15 +310,61 @@ async def menu_action(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
         return
 
     if action == "fun_quote_random":
-        from bot.handlers.quotes import random_quote_cmd
-
-        await random_quote_cmd(update, context)
+        conn = get_conn(s.sqlite_path)
+        cur = conn.cursor()
+        cur.execute(
+            "SELECT id, author_label, quote_text FROM quotes WHERE chat_id = ? ORDER BY RANDOM() LIMIT 1",
+            (s.main_chat_id,),
+        )
+        row = cur.fetchone()
+        conn.close()
+        if not row:
+            text = "Цитат пока нет"
+        else:
+            qid, author_label, quote_text = row
+            text = f"📚 Цитата #{qid}\n{quote_text}\n\n— {author_label}"
+        await query.edit_message_text(
+            text,
+            reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("⬅️ Назад", callback_data=f"menu:fun:{issuer_id}")]]),
+        )
         return
 
     if action == "fun_quote_latest":
-        from bot.handlers.quotes import latest_quote_cmd
+        conn = get_conn(s.sqlite_path)
+        cur = conn.cursor()
+        cur.execute(
+            "SELECT id, author_label, quote_text FROM quotes WHERE chat_id = ? ORDER BY id DESC LIMIT 1",
+            (s.main_chat_id,),
+        )
+        row = cur.fetchone()
+        conn.close()
+        if not row:
+            text = "Цитат пока нет"
+        else:
+            qid, author_label, quote_text = row
+            text = f"🆕 Последняя цитата #{qid}\n{quote_text}\n\n— {author_label}"
+        await query.edit_message_text(
+            text,
+            reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("⬅️ Назад", callback_data=f"menu:fun:{issuer_id}")]]),
+        )
+        return
 
-        await latest_quote_cmd(update, context)
+    if action == "social_ff_stats":
+        from bot.handlers.social import friend_foe_stats
+
+        await friend_foe_stats(update, context)
+        return
+
+    if action == "social_ff_top":
+        from bot.handlers.social import friend_foe_top
+
+        await friend_foe_top(update, context)
+        return
+
+    if action == "social_bottle":
+        from bot.handlers.social import bottle_game
+
+        await bottle_game(update, context)
         return
 
     if action == "fun_hipish":

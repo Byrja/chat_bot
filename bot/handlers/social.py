@@ -37,21 +37,27 @@ def _label(db_path: str, chat_id: int, uid: int) -> str:
 
 
 async def friend_foe_stats(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    if not update.message or not update.effective_chat or not update.effective_user:
+    msg = update.message or (update.callback_query.message if update.callback_query else None)
+    if not msg or not update.effective_chat or not update.effective_user:
         return
     s = _settings(context)
     st = get_friend_foe_stats(s.sqlite_path, update.effective_chat.id, update.effective_user.id)
-    await update.message.reply_text(
+    text = (
         "⚖️ Friend/Foe статистика\n"
         "───────────────────\n"
         f"Карма: {st['karma']}\n"
         f"Плюсов получено: {st['plus_count']}\n"
         f"Минусов получено: {st['minus_count']}"
     )
+    if update.callback_query:
+        await update.callback_query.edit_message_text(text)
+    else:
+        await msg.reply_text(text)
 
 
 async def friend_foe_top(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    if not update.message or not update.effective_chat:
+    msg = update.message or (update.callback_query.message if update.callback_query else None)
+    if not msg or not update.effective_chat:
         return
     s = _settings(context)
     pos, neg = get_friend_foe_top(s.sqlite_path, update.effective_chat.id, limit=3)
@@ -71,16 +77,24 @@ async def friend_foe_top(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     else:
         lines.append("—")
 
-    await update.message.reply_text("\n".join(lines))
+    text = "\n".join(lines)
+    if update.callback_query:
+        await update.callback_query.edit_message_text(text)
+    else:
+        await msg.reply_text(text)
 
 
 async def bottle_game(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    if not update.message or not update.effective_chat or not update.effective_user:
+    msg = update.message or (update.callback_query.message if update.callback_query else None)
+    if not msg or not update.effective_chat or not update.effective_user:
         return
     s = _settings(context)
     pair = pick_bottle_pair(s.sqlite_path, update.effective_chat.id)
     if not pair:
-        await update.message.reply_text("Нужно хотя бы 2 активных участника для бутылочки")
+        if update.callback_query:
+            await update.callback_query.edit_message_text("Нужно хотя бы 2 активных участника для бутылочки")
+        else:
+            await msg.reply_text("Нужно хотя бы 2 активных участника для бутылочки")
         return
 
     actor_uid, partner_uid = pair
@@ -93,12 +107,15 @@ async def bottle_game(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
         [InlineKeyboardButton("✅ Выполнено (+10)", callback_data=f"bottle:done:{gid}:{actor_uid}")],
         [InlineKeyboardButton("❌ Не выполнено (-10)", callback_data=f"bottle:fail:{gid}:{actor_uid}")],
     ])
-    await update.message.reply_text(
+    text = (
         f"🍾 Бутылочка крутится...\n"
         f"{actor} выполняет задание от {partner}.\n"
-        f"Отметьте результат:",
-        reply_markup=kb,
+        f"Отметьте результат:"
     )
+    if update.callback_query:
+        await update.callback_query.edit_message_text(text, reply_markup=kb)
+    else:
+        await msg.reply_text(text, reply_markup=kb)
 
 
 async def bottle_result_action(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
