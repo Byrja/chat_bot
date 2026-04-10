@@ -297,6 +297,7 @@ async def menu_action(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
             reply_markup=InlineKeyboardMarkup([
                 [InlineKeyboardButton("⚖️ Friend/Foe стат", callback_data=f"menu:social_ff_stats:{issuer_id}")],
                 [InlineKeyboardButton("🏆 Friend/Foe топ", callback_data=f"menu:social_ff_top:{issuer_id}")],
+                [InlineKeyboardButton("💠 Моя карма", callback_data=f"menu:social_karma_me:{issuer_id}"), InlineKeyboardButton("📈 Карма топ", callback_data=f"menu:social_karma_top:{issuer_id}")],
                 [InlineKeyboardButton("🍾 Бутылочка", callback_data=f"menu:social_bottle:{issuer_id}")],
                 [InlineKeyboardButton("⬅️ В меню", callback_data=f"menu:home:{issuer_id}")],
             ]),
@@ -367,7 +368,53 @@ async def menu_action(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
         await bottle_game(update, context)
         return
 
+    if action == "social_karma_me":
+        conn = get_conn(s.sqlite_path)
+        cur = conn.cursor()
+        cur.execute("SELECT score FROM karma_scores WHERE chat_id = ? AND tg_user_id = ?", (s.main_chat_id, uid))
+        row = cur.fetchone()
+        conn.close()
+        val = int(row[0]) if row else 0
+        await query.edit_message_text(f"💠 Твоя карма: {val}", reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("⬅️ Назад", callback_data=f"menu:social:{issuer_id}")]]))
+        return
+
+    if action == "social_karma_top":
+        conn = get_conn(s.sqlite_path)
+        cur = conn.cursor()
+        cur.execute("SELECT tg_user_id, score FROM karma_scores WHERE chat_id = ? ORDER BY score DESC LIMIT 5", (s.main_chat_id,))
+        pos = cur.fetchall()
+        cur.execute("SELECT tg_user_id, score FROM karma_scores WHERE chat_id = ? ORDER BY score ASC LIMIT 5", (s.main_chat_id,))
+        neg = cur.fetchall()
+        conn.close()
+
+        lines = ["⚖️ Карма чата", "───────────────────", "🌟 Топ +:"]
+        if pos:
+            for i, (u2, sc) in enumerate(pos, 1):
+                lines.append(f"{i}. {u2} — {int(sc)}")
+        else:
+            lines.append("—")
+        lines.append("")
+        lines.append("💀 Топ -:")
+        if neg:
+            for i, (u2, sc) in enumerate(neg, 1):
+                lines.append(f"{i}. {u2} — {int(sc)}")
+        else:
+            lines.append("—")
+
+        await query.edit_message_text("\n".join(lines), reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("⬅️ Назад", callback_data=f"menu:social:{issuer_id}")]]))
+        return
+
     if action == "fun_hipish":
+        await query.edit_message_text(
+            "Уверен ли ты, смерд, что хочешь призвать админов?",
+            reply_markup=InlineKeyboardMarkup([
+                [InlineKeyboardButton("✅ Да", callback_data=f"menu:fun_hipish_do:{issuer_id}")],
+                [InlineKeyboardButton("❌ Нет", callback_data=f"menu:home:{issuer_id}")],
+            ]),
+        )
+        return
+
+    if action == "fun_hipish_do":
         key = f"hipish_last_ts:{update.effective_chat.id}"
         now = time.time()
         last = float(context.application.bot_data.get(key, 0.0) or 0.0)

@@ -89,6 +89,19 @@ async def bottle_game(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
     if not msg or not update.effective_chat or not update.effective_user:
         return
     s = _settings(context)
+
+    key = f"bottle_last_ts:{update.effective_chat.id}"
+    import time
+    now = time.time()
+    last = float(context.application.bot_data.get(key, 0.0) or 0.0)
+    if now - last < 300:
+        left = int((300 - (now - last)) // 60) + 1
+        text = f"🍾 Бутылочку можно запускать раз в 5 минут. Осталось ~{left} мин."
+        if update.callback_query:
+            await update.callback_query.edit_message_text(text)
+        else:
+            await msg.reply_text(text)
+        return
     pair = pick_bottle_pair(s.sqlite_path, update.effective_chat.id)
     if not pair:
         if update.callback_query:
@@ -112,6 +125,7 @@ async def bottle_game(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
         f"{actor} выполняет задание от {partner}.\n"
         f"Отметьте результат:"
     )
+    context.application.bot_data[key] = now
     if update.callback_query:
         await update.callback_query.edit_message_text(text, reply_markup=kb)
     else:

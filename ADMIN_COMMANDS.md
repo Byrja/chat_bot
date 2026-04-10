@@ -61,6 +61,10 @@
 - Requires birthdate in settings.
 - Uses OpenRouter model with local fallback.
 
+### Social quick notes
+- `+` or `-` as reply to message adjusts karma.
+- Bottle game has 5-minute chat cooldown.
+
 ### `/hipish`
 - Available for all participants.
 - Mentions configured admins.
