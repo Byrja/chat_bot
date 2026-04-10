@@ -78,7 +78,7 @@ def build_app(settings: Settings) -> Application:
     app.add_handler(CommandHandler("whois", whois_command))
     app.add_handler(CommandHandler("activity", show_activity))
     app.add_handler(CommandHandler("menu", show_menu))
-    app.add_handler(CallbackQueryHandler(menu_action, pattern=r"^menu:(stats|activity|fun|mod)$"))
+    app.add_handler(CallbackQueryHandler(menu_action, pattern=r"^menu:(home|stats|activity|fun|fun_hipish|fun_muteme15|mod)$"))
     app.add_handler(MessageHandler(filters.Regex(r"(?i)^\s*анкета\s+@?[a-zA-Z0-9_]{3,}\s*$"), questionnaire_lookup))
     app.add_handler(CommandHandler("mute_me", mute_me))
     app.add_handler(CommandHandler("hipish", hipish))

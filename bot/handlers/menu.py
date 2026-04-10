@@ -1,8 +1,11 @@
-from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
+from datetime import datetime
+
+from telegram import ChatPermissions, InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import ContextTypes
 
 from bot.config import Settings
-from bot.services.rbac import has_permission
+from bot.db import get_conn
+from bot.services.rbac import effective_role, has_permission
 
 
 def _settings(context: ContextTypes.DEFAULT_TYPE) -> Settings:
@@ -37,18 +40,117 @@ async def show_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
 async def menu_action(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     query = update.callback_query
-    if not query:
+    if not query or not update.effective_user:
         return
     await query.answer()
 
+    s = _settings(context)
+    uid = update.effective_user.id
     action = (query.data or "menu:").split(":", 1)[1]
+
+    if action == "home":
+        await show_menu(update, context)
+        return
+
     if action == "stats":
-        await query.message.reply_text("Статистика: /admin_stats")
-    elif action == "activity":
-        await query.message.reply_text("Актив: /activity")
-    elif action == "fun":
-        await query.message.reply_text("Развлечения: /hipish или /mute_me 30")
-    elif action == "mod":
-        await query.message.reply_text("Модерация: /warn, /mute, /ban (reply на пользователя)")
+        conn = get_conn(s.sqlite_path)
+        cur = conn.cursor()
+        cur.execute("SELECT COUNT(*) FROM applications WHERE tg_user_id = ?", (uid,))
+        apps = int(cur.fetchone()[0] or 0)
+        cur.execute("SELECT COUNT(*) FROM applications WHERE tg_user_id = ? AND status='approved'", (uid,))
+        approved = int(cur.fetchone()[0] or 0)
+        cur.execute("SELECT msg_count, last_message_at FROM member_activity WHERE chat_id = ? AND tg_user_id = ?", (s.main_chat_id, uid))
+        r = cur.fetchone()
+        conn.close()
+        msg_count = int(r[0]) if r else 0
+        last_at = r[1] if r else None
+        role = effective_role(s, s.sqlite_path, uid)
+
+        await query.edit_message_text(
+            "📊 Твоя статистика\n"
+            "───────────────────\n"
+            f"Роль: {role}\n"
+            f"Анкет подано: {apps}\n"
+            f"Одобрено: {approved}\n"
+            f"Сообщений в чате: {msg_count}\n"
+            f"Последнее сообщение: {last_at or '—'}",
+            reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("⬅️ В меню", callback_data="menu:home")]]),
+        )
+        return
+
+    if action == "activity":
+        conn = get_conn(s.sqlite_path)
+        cur = conn.cursor()
+        cur.execute(
+            """
+            SELECT COALESCE(username,''), COALESCE(first_name,''), msg_count, last_message_at
+            FROM member_activity
+            WHERE chat_id = ?
+            ORDER BY msg_count DESC, datetime(last_message_at) DESC
+            LIMIT 10
+            """,
+            (s.main_chat_id,),
+        )
+        rows = cur.fetchall()
+        conn.close()
+        if not rows:
+            text = "Пока нет данных по активности."
+        else:
+            lines = ["👥 Топ активности", "───────────────────"]
+            for i, (username, first_name, cnt, last_at) in enumerate(rows, 1):
+                label = f"@{username}" if username else (first_name or "user")
+                lines.append(f"{i}. {label} — {cnt} | {last_at or '—'}")
+            text = "\n".join(lines)
+        await query.edit_message_text(
+            text,
+            reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("⬅️ В меню", callback_data="menu:home")]]),
+        )
+        return
+
+    if action == "fun":
+        await query.edit_message_text(
+            "🎭 Развлечения\nВыбери действие:",
+            reply_markup=InlineKeyboardMarkup([
+                [InlineKeyboardButton("📣 Хипиш", callback_data="menu:fun_hipish")],
+                [InlineKeyboardButton("🔇 Самомут 15 мин", callback_data="menu:fun_muteme15")],
+                [InlineKeyboardButton("⬅️ В меню", callback_data="menu:home")],
+            ]),
+        )
+        return
+
+    if action == "fun_hipish":
+        await query.edit_message_text(
+            "Чтобы позвать админов, отправь команду: /hipish",
+            reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("⬅️ В меню", callback_data="menu:home")]]),
+        )
+        return
+
+    if action == "fun_muteme15":
+        try:
+            await context.bot.restrict_chat_member(
+                chat_id=update.effective_chat.id,
+                user_id=uid,
+                permissions=ChatPermissions(can_send_messages=False),
+                until_date=datetime.utcnow().timestamp() + 15 * 60,
+            )
+            await query.message.reply_text("Самомут на 15 минут активирован")
+        except Exception as e:
+            await query.message.reply_text(f"Не удалось выдать самомут: {e}")
+        await show_menu(update, context)
+        return
+
+    if action == "mod":
+        if not has_permission(s, s.sqlite_path, uid, "warn"):
+            await query.edit_message_text("Недостаточно прав", reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("⬅️ В меню", callback_data="menu:home")]]))
+            return
+        await query.edit_message_text(
+            "🛡 Модерация\n"
+            "Команды (reply на пользователя):\n"
+            "/warn причина\n"
+            "/mute 30 причина\n"
+            "/ban причина",
+            reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("⬅️ В меню", callback_data="menu:home")]]),
+        )
+        return
 
     await show_menu(update, context)
