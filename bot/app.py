@@ -25,7 +25,7 @@ from bot.handlers.questionnaire import (
     receive_photo,
     receive_reject_reason,
 )
-from bot.handlers.admin_sanctions import warn_user
+from bot.handlers.admin_sanctions import mute_user, warn_user
 from bot.handlers.start import health
 
 
@@ -64,6 +64,7 @@ def build_app(settings: Settings) -> Application:
     )
     app.add_handler(mod_flow)
     app.add_handler(CommandHandler("warn", warn_user))
+    app.add_handler(CommandHandler("mute", mute_user))
     app.add_handler(CommandHandler("health", health))
     return app
 

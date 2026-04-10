@@ -1,8 +1,9 @@
-from telegram import Update
+from telegram import ChatPermissions, Update
 from telegram.ext import ContextTypes
 
 from bot.config import Settings
 from bot.repositories.sanctions import add_sanction
+from bot.services.timeparse import parse_mute_duration
 
 
 def _settings(context: ContextTypes.DEFAULT_TYPE) -> Settings:
@@ -14,6 +15,59 @@ def _is_admin(update: Update, context: ContextTypes.DEFAULT_TYPE) -> bool:
     if not user:
         return False
     return user.id in _settings(context).admin_user_ids
+
+
+async def mute_user(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    if not update.message or not update.effective_chat:
+        return
+    if not _is_admin(update, context):
+        await update.message.reply_text("Недостаточно прав")
+        return
+
+    if not update.message.reply_to_message or not update.message.reply_to_message.from_user:
+        await update.message.reply_text("Используй /mute ответом на сообщение пользователя")
+        return
+
+    if not context.args:
+        await update.message.reply_text("Формат: /mute 30m причина (или 2h / 1d)")
+        return
+
+    target = update.message.reply_to_message.from_user
+    if target.is_bot:
+        await update.message.reply_text("Нельзя выдать мут боту")
+        return
+
+    until_dt = parse_mute_duration(context.args[0])
+    if until_dt is None:
+        await update.message.reply_text("Некорректная длительность. Используй: 30m, 2h, 1d")
+        return
+    reason = " ".join(context.args[1:]).strip() or None
+
+    s = _settings(context)
+    try:
+        await context.bot.restrict_chat_member(
+            chat_id=update.effective_chat.id,
+            user_id=target.id,
+            permissions=ChatPermissions(can_send_messages=False),
+            until_date=until_dt,
+        )
+    except Exception as e:
+        await update.message.reply_text(f"Не удалось выдать мут: {e}")
+        return
+
+    add_sanction(
+        s.sqlite_path,
+        target_tg_user_id=target.id,
+        action="mute",
+        issued_by_tg_user_id=update.effective_user.id,
+        reason=reason,
+        until_at=until_dt.isoformat(),
+    )
+
+    txt = f"🔇 Мут выдан пользователю {target.id} до {until_dt.strftime('%Y-%m-%d %H:%M UTC')}"
+    if reason:
+        txt += f"\nПричина: {reason}"
+    await update.message.reply_text(txt)
 
 
 async def warn_user(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
