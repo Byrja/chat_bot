@@ -116,6 +116,15 @@ CREATE TABLE IF NOT EXISTS member_profiles (
     birth_month INTEGER,
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
+
+CREATE TABLE IF NOT EXISTS birthday_notifications (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    tg_user_id INTEGER NOT NULL,
+    event_type TEXT NOT NULL CHECK(event_type IN ('week_before','today')),
+    event_date TEXT NOT NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(tg_user_id, event_type, event_date)
+);
 """
 
 

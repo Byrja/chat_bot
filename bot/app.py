@@ -38,6 +38,7 @@ from bot.handlers.roles_admin import set_role_command, whois_command
 from bot.handlers.start import health
 from bot.handlers.top_pairs import show_top_pairs
 from bot.handlers.top_week import show_top_week
+from bot.handlers.birthday_reminders import send_birthday_reminders
 
 
 def build_app(settings: Settings) -> Application:
@@ -94,6 +95,10 @@ def build_app(settings: Settings) -> Application:
     app.add_handler(MessageHandler(filters.ChatType.GROUPS & ~filters.COMMAND, track_message_activity))
     app.add_handler(CommandHandler("health", health))
     app.add_error_handler(on_error)
+
+    if app.job_queue:
+        app.job_queue.run_repeating(send_birthday_reminders, interval=3600, first=120, name="birthday_reminders")
+
     return app
 
 
