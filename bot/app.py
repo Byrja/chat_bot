@@ -27,7 +27,7 @@ from bot.handlers.questionnaire import (
 )
 from bot.handlers.activity import show_activity, track_message_activity
 from bot.handlers.menu import menu_action, show_menu
-from bot.handlers.mod_panel import mod_panel, mod_quick_action
+from bot.handlers.mod_panel import mod_panel, mod_quick_action, mod_quick_ask_reason
 from bot.handlers.profile_input import capture_birthdate_input
 from bot.handlers.questionnaire_lookup import questionnaire_lookup
 from bot.handlers.admin_sanctions import ban_user, mute_user, warn_user
@@ -87,7 +87,8 @@ def build_app(settings: Settings) -> Application:
     app.add_handler(CommandHandler("menu", show_menu))
     app.add_handler(CommandHandler("mod", mod_panel))
     app.add_handler(CallbackQueryHandler(menu_action, pattern=r"^menu:(home|stats|activity|pairs|week|fun|fun_hipish|mod|settings|settings_muteme15|settings_bday|settings_editform|settings_kick_confirm|settings_kick_do):[0-9]+$"))
-    app.add_handler(CallbackQueryHandler(mod_quick_action, pattern=r"^modquick:(warn|mute30|ban):[0-9]+:[0-9]+$"))
+    app.add_handler(CallbackQueryHandler(mod_quick_ask_reason, pattern=r"^modquickask:(warn|mute30|ban):[0-9]+:[0-9]+$"))
+    app.add_handler(CallbackQueryHandler(mod_quick_action, pattern=r"^modquick:(warn|mute30|ban):[0-9]+:[0-9]+:(spam|abuse|offtopic|other)$"))
     app.add_handler(MessageHandler(filters.Regex(r"(?i)^\s*анкета\s+@?[a-zA-Z0-9_]{3,}\s*$"), questionnaire_lookup))
     app.add_handler(MessageHandler(filters.Regex(r"^\d{1,2}\.\d{1,2}$"), capture_birthdate_input))
     app.add_handler(CommandHandler("mute_me", mute_me))
