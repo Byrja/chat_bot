@@ -24,6 +24,15 @@
 - Shows application funnel and sanctions counters.
 - Admin-only.
 
+### `/role <admin|old|trusted|newbie>`
+- Admin-only (from `ADMIN_USER_IDS`).
+- Use as reply to a user's message.
+- Sets participant role.
+
+### `/whois`
+- If used in reply: shows target user's role.
+- Without reply: shows your role.
+
 ## Notes
 - Commands available only for IDs listed in `ADMIN_USER_IDS`.
 - Bot must have sufficient admin rights in target chat.
