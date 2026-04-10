@@ -70,6 +70,50 @@ async def mute_user(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     await update.message.reply_text(txt)
 
 
+async def ban_user(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    if not update.message or not update.effective_chat:
+        return
+    if not _is_admin(update, context):
+        await update.message.reply_text("Недостаточно прав")
+        return
+
+    if not update.message.reply_to_message or not update.message.reply_to_message.from_user:
+        await update.message.reply_text("Используй /ban ответом на сообщение пользователя")
+        return
+
+    target = update.message.reply_to_message.from_user
+    if target.is_bot:
+        await update.message.reply_text("Нельзя забанить бота")
+        return
+
+    reason = " ".join(context.args).strip() if context.args else None
+
+    s = _settings(context)
+    try:
+        await context.bot.ban_chat_member(
+            chat_id=update.effective_chat.id,
+            user_id=target.id,
+            revoke_messages=False,
+        )
+    except Exception as e:
+        await update.message.reply_text(f"Не удалось выдать бан: {e}")
+        return
+
+    add_sanction(
+        s.sqlite_path,
+        target_tg_user_id=target.id,
+        action="ban",
+        issued_by_tg_user_id=update.effective_user.id,
+        reason=reason,
+        until_at=None,
+    )
+
+    text = f"⛔ Бан выдан пользователю {target.id}"
+    if reason:
+        text += f"\nПричина: {reason}"
+    await update.message.reply_text(text)
+
+
 async def warn_user(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if not update.message:
         return
