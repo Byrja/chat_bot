@@ -385,19 +385,31 @@ async def menu_action(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
         pos = cur.fetchall()
         cur.execute("SELECT tg_user_id, score FROM karma_scores WHERE chat_id = ? ORDER BY score ASC LIMIT 5", (s.main_chat_id,))
         neg = cur.fetchall()
+
+        uids = {int(u) for u, _ in pos} | {int(u) for u, _ in neg}
+        labels = {u: str(u) for u in uids}
+        for u in uids:
+            cur.execute(
+                "SELECT COALESCE(username,''), COALESCE(first_name,'') FROM member_activity WHERE chat_id = ? AND tg_user_id = ? ORDER BY updated_at DESC LIMIT 1",
+                (s.main_chat_id, u),
+            )
+            r = cur.fetchone()
+            if r:
+                uname, fname = r
+                labels[u] = f"@{uname}" if uname else (fname or str(u))
         conn.close()
 
         lines = ["⚖️ Карма чата", "───────────────────", "🌟 Топ +:"]
         if pos:
             for i, (u2, sc) in enumerate(pos, 1):
-                lines.append(f"{i}. {u2} — {int(sc)}")
+                lines.append(f"{i}. {labels.get(int(u2), u2)} — {int(sc)}")
         else:
             lines.append("—")
         lines.append("")
         lines.append("💀 Топ -:")
         if neg:
             for i, (u2, sc) in enumerate(neg, 1):
-                lines.append(f"{i}. {u2} — {int(sc)}")
+                lines.append(f"{i}. {labels.get(int(u2), u2)} — {int(sc)}")
         else:
             lines.append("—")
 
