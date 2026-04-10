@@ -1,4 +1,4 @@
-from telegram import ReplyKeyboardRemove, Update
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup, ReplyKeyboardRemove, Update
 from telegram.ext import ContextTypes, ConversationHandler
 
 from bot.config import Settings
@@ -9,7 +9,7 @@ from bot.repositories.applications import (
 )
 from bot.services.validation import validate_age
 
-WAIT_NAME, WAIT_DISTRICT, WAIT_AGE, WAIT_HOBBY = range(4)
+WAIT_NAME, WAIT_DISTRICT, WAIT_AGE, WAIT_HOBBY, WAIT_ALCOHOL = range(5)
 
 
 def _settings(context: ContextTypes.DEFAULT_TYPE) -> Settings:
@@ -94,10 +94,16 @@ async def receive_hobby(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
         save_answer(s.sqlite_path, app_id, "tg_handle", handle, 2)
 
     await update.message.reply_text(
-        "Step 1.3 готов: базовые ответы сохранены. Дальше подключим вопросы 5–8.",
-        reply_markup=ReplyKeyboardRemove(),
+        "Вопрос 5/8: Как относишься к алкоголю? 🍺",
+        reply_markup=InlineKeyboardMarkup([
+            [
+                InlineKeyboardButton("Да", callback_data="alc:yes"),
+                InlineKeyboardButton("Нет", callback_data="alc:no"),
+                InlineKeyboardButton("За компанию", callback_data="alc:social"),
+            ]
+        ]),
     )
-    return ConversationHandler.END
+    return WAIT_ALCOHOL
 
 
 async def questionnaire_cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:

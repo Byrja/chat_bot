@@ -1,9 +1,11 @@
 from telegram import Update
-from telegram.ext import Application, CommandHandler, ConversationHandler, MessageHandler, filters
+from telegram.ext import Application, CallbackQueryHandler, CommandHandler, ConversationHandler, MessageHandler, filters
 
 from bot.config import Settings
+from bot.handlers.alcohol_tmp import receive_alcohol_choice
 from bot.handlers.questionnaire import (
     WAIT_AGE,
+    WAIT_ALCOHOL,
     WAIT_DISTRICT,
     WAIT_HOBBY,
     WAIT_NAME,
@@ -31,6 +33,7 @@ def build_app(settings: Settings) -> Application:
             WAIT_DISTRICT: [MessageHandler(filters.TEXT & ~filters.COMMAND, receive_district)],
             WAIT_AGE: [MessageHandler(filters.TEXT & ~filters.COMMAND, receive_age)],
             WAIT_HOBBY: [MessageHandler(filters.TEXT & ~filters.COMMAND, receive_hobby)],
+            WAIT_ALCOHOL: [CallbackQueryHandler(receive_alcohol_choice, pattern=r"^alc:(yes|no|social)$")],
         },
         fallbacks=[CommandHandler("cancel", questionnaire_cancel)],
         allow_reentry=True,
