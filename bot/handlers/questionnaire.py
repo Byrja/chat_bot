@@ -254,35 +254,44 @@ async def moderation_action(update: Update, context: ContextTypes.DEFAULT_TYPE) 
         return
     action, app_id = parts[1], int(parts[2])
 
-    if action == "approve":
-        ok = set_decision(s.sqlite_path, app_id, "approved", update.effective_user.id)
-        if not ok:
-            await query.edit_message_text("Заявка уже обработана или недоступна.")
-            return
-        owner = get_application_for_admin(s.sqlite_path, app_id)
-        if owner:
-            owner_id, _ = owner
-            from datetime import datetime, timedelta, timezone
-            invite = await context.bot.create_chat_invite_link(
-                chat_id=s.main_chat_id,
-                member_limit=1,
-                expire_date=datetime.now(timezone.utc) + timedelta(hours=24),
-                creates_join_request=False,
-                name=f"md4-{app_id}",
-            )
-            await context.bot.send_message(
-                chat_id=owner_id,
-                text=f"Твоя заявка одобрена ✅\nВот ссылка в чат (одноразовая):\n{invite.invite_link}",
-            )
-        await query.edit_message_text(f"Анкета #{app_id} одобрена ✅")
+    lock_key = f"mod_lock:{app_id}"
+    if context.application.bot_data.get(lock_key):
+        await query.answer("Заявка уже обрабатывается…", show_alert=False)
         return
+    context.application.bot_data[lock_key] = True
 
-    if action == "reject":
-        context.user_data["reject_app_id"] = app_id
-        await query.edit_message_text(
-            f"Анкета #{app_id}: укажи причину отказа текстом (или отправь '-' чтобы без причины)."
-        )
-        return WAIT_REJECT_REASON
+    try:
+        if action == "approve":
+            ok = set_decision(s.sqlite_path, app_id, "approved", update.effective_user.id)
+            if not ok:
+                await query.edit_message_text("Заявка уже обработана или недоступна.")
+                return
+            owner = get_application_for_admin(s.sqlite_path, app_id)
+            if owner:
+                owner_id, _ = owner
+                from datetime import datetime, timedelta, timezone
+                invite = await context.bot.create_chat_invite_link(
+                    chat_id=s.main_chat_id,
+                    member_limit=1,
+                    expire_date=datetime.now(timezone.utc) + timedelta(hours=24),
+                    creates_join_request=False,
+                    name=f"md4-{app_id}",
+                )
+                await context.bot.send_message(
+                    chat_id=owner_id,
+                    text=f"Твоя заявка одобрена ✅\nВот ссылка в чат (одноразовая):\n{invite.invite_link}",
+                )
+            await query.edit_message_text(f"Анкета #{app_id} одобрена ✅")
+            return
+
+        if action == "reject":
+            context.user_data["reject_app_id"] = app_id
+            await query.edit_message_text(
+                f"Анкета #{app_id}: укажи причину отказа текстом (или отправь '-' чтобы без причины)."
+            )
+            return WAIT_REJECT_REASON
+    finally:
+        context.application.bot_data.pop(lock_key, None)
 
 
 async def receive_reject_reason(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
