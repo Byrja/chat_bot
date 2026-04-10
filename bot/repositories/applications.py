@@ -1,6 +1,24 @@
 from bot.db import get_conn
 
 
+def count_submitted_today(db_path: str, tg_user_id: int) -> int:
+    conn = get_conn(db_path)
+    cur = conn.cursor()
+    cur.execute(
+        """
+        SELECT COUNT(*)
+        FROM applications
+        WHERE tg_user_id = ?
+          AND status IN ('submitted','approved','rejected')
+          AND date(COALESCE(submitted_at, created_at)) = date('now')
+        """,
+        (tg_user_id,),
+    )
+    n = int(cur.fetchone()[0] or 0)
+    conn.close()
+    return n
+
+
 def upsert_user(db_path: str, tg_user_id: int, username: str | None, first_name: str | None) -> None:
     conn = get_conn(db_path)
     cur = conn.cursor()
@@ -37,6 +55,34 @@ def get_or_create_draft_application(db_path: str, tg_user_id: int) -> int:
     return app_id
 
 
+def set_decision(db_path: str, application_id: int, status: str, decided_by_admin_id: int, reject_reason: str | None = None) -> bool:
+    if status not in {"approved", "rejected"}:
+        return False
+    conn = get_conn(db_path)
+    cur = conn.cursor()
+    cur.execute(
+        """
+        UPDATE applications
+        SET status=?, decided_at=CURRENT_TIMESTAMP, decided_by_admin_id=?, reject_reason=?, updated_at=CURRENT_TIMESTAMP
+        WHERE id = ? AND status = 'submitted'
+        """,
+        (status, decided_by_admin_id, reject_reason, application_id),
+    )
+    changed = cur.rowcount > 0
+    conn.commit()
+    conn.close()
+    return changed
+
+
+def get_application_owner(db_path: str, application_id: int) -> int | None:
+    conn = get_conn(db_path)
+    cur = conn.cursor()
+    cur.execute("SELECT tg_user_id FROM applications WHERE id = ?", (application_id,))
+    row = cur.fetchone()
+    conn.close()
+    return int(row[0]) if row else None
+
+
 def submit_application(db_path: str, application_id: int) -> bool:
     conn = get_conn(db_path)
     cur = conn.cursor()
@@ -52,6 +98,13 @@ def submit_application(db_path: str, application_id: int) -> bool:
     conn.commit()
     conn.close()
     return changed
+
+
+def get_application_for_admin(db_path: str, application_id: int) -> tuple[int, dict[str, str]] | None:
+    owner = get_application_owner(db_path, application_id)
+    if owner is None:
+        return None
+    return owner, get_answers_map(db_path, application_id)
 
 
 def get_answers_map(db_path: str, application_id: int) -> dict[str, str]:

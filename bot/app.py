@@ -12,6 +12,7 @@ from bot.handlers.questionnaire import (
     WAIT_AVAILABILITY,
     WAIT_PHOTO,
     WAIT_PREVIEW,
+    moderation_action,
     preview_action,
     questionnaire_cancel,
     questionnaire_start,
@@ -49,6 +50,7 @@ def build_app(settings: Settings) -> Application:
     )
 
     app.add_handler(flow)
+    app.add_handler(CallbackQueryHandler(moderation_action, pattern=r"^mod:(approve|reject):[0-9]+$"))
     app.add_handler(CommandHandler("health", health))
     return app
 

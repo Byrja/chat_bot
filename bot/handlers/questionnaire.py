@@ -3,9 +3,12 @@ from telegram.ext import ContextTypes, ConversationHandler
 
 from bot.config import Settings
 from bot.repositories.applications import (
+    count_submitted_today,
     get_answers_map,
+    get_application_for_admin,
     get_or_create_draft_application,
     save_answer,
+    set_decision,
     submit_application,
     upsert_user,
 )
@@ -177,10 +180,44 @@ async def preview_action(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             await query.edit_message_text("Черновик не найден. Начни заново: /start")
             return ConversationHandler.END
         s = _settings(context)
+        uid = update.effective_user.id if update.effective_user else 0
+        if uid and count_submitted_today(s.sqlite_path, uid) >= 2:
+            await query.edit_message_text("Лимит заявок на сегодня исчерпан (2/день). Попробуй завтра.")
+            return ConversationHandler.END
+
         ok = submit_application(s.sqlite_path, app_id)
         if not ok:
             await query.edit_message_text("Заявка уже отправлена или недоступна.")
             return ConversationHandler.END
+
+        packet = get_application_for_admin(s.sqlite_path, app_id)
+        if packet:
+            owner_id, answers = packet
+            text = (
+                "🆕 Новая анкета MD4\n"
+                "───────────────────\n"
+                f"Application ID: {app_id}\n"
+                f"User: {owner_id} ({answers.get('tg_handle', '—')})\n"
+                f"Имя: {answers.get('name', '—')}\n"
+                f"Район: {answers.get('district', '—')}\n"
+                f"Возраст: {answers.get('age', '—')}\n"
+                f"Хобби: {answers.get('hobby', '—')}\n"
+                f"Алкоголь: {answers.get('alcohol', '—')}\n"
+                f"Свободное время: {answers.get('availability', '—')}"
+            )
+            await context.bot.send_message(
+                chat_id=s.admin_chat_id,
+                text=text,
+                reply_markup=InlineKeyboardMarkup([
+                    [
+                        InlineKeyboardButton("✅ Одобрить", callback_data=f"mod:approve:{app_id}"),
+                        InlineKeyboardButton("❌ Отказать", callback_data=f"mod:reject:{app_id}"),
+                    ]
+                ]),
+            )
+            photo_id = answers.get("photo_file_id")
+            if photo_id:
+                await context.bot.send_photo(chat_id=s.admin_chat_id, photo=photo_id, caption=f"Фото анкеты #{app_id}")
 
         await query.edit_message_text(
             "Анкета отправлена на модерацию ✅\n"
@@ -189,6 +226,58 @@ async def preview_action(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         return ConversationHandler.END
 
     return ConversationHandler.END
+
+
+async def moderation_action(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    query = update.callback_query
+    if not query or not update.effective_user:
+        return
+    await query.answer()
+
+    s = _settings(context)
+    if update.effective_user.id not in s.admin_user_ids:
+        await query.answer("Недостаточно прав", show_alert=True)
+        return
+
+    parts = (query.data or "").split(":")
+    if len(parts) != 3:
+        return
+    action, app_id = parts[1], int(parts[2])
+
+    if action == "approve":
+        ok = set_decision(s.sqlite_path, app_id, "approved", update.effective_user.id)
+        if not ok:
+            await query.edit_message_text("Заявка уже обработана или недоступна.")
+            return
+        owner = get_application_for_admin(s.sqlite_path, app_id)
+        if owner:
+            owner_id, _ = owner
+            from datetime import datetime, timedelta, timezone
+            invite = await context.bot.create_chat_invite_link(
+                chat_id=s.main_chat_id,
+                member_limit=1,
+                expire_date=datetime.now(timezone.utc) + timedelta(hours=24),
+                creates_join_request=False,
+                name=f"md4-{app_id}",
+            )
+            await context.bot.send_message(
+                chat_id=owner_id,
+                text=f"Твоя заявка одобрена ✅\nВот ссылка в чат (одноразовая):\n{invite.invite_link}",
+            )
+        await query.edit_message_text(f"Анкета #{app_id} одобрена ✅")
+        return
+
+    if action == "reject":
+        ok = set_decision(s.sqlite_path, app_id, "rejected", update.effective_user.id, reject_reason=None)
+        if not ok:
+            await query.edit_message_text("Заявка уже обработана или недоступна.")
+            return
+        owner = get_application_for_admin(s.sqlite_path, app_id)
+        if owner:
+            owner_id, _ = owner
+            await context.bot.send_message(chat_id=owner_id, text="К сожалению, по анкете отказ. Можно подать повторно позже.")
+        await query.edit_message_text(f"Анкета #{app_id} отклонена ❌")
+        return
 
 
 async def questionnaire_cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
