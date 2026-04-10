@@ -24,6 +24,12 @@
 - Shows application funnel and sanctions counters.
 - Admin-only.
 
+### `/activity`
+- Top nolifers (all-time) by message count + last message date.
+
+### `/top_week`
+- Top nolifers for last 7 days.
+
 ### `/role <admin|old|trusted|newbie>`
 - Admin-only (from `ADMIN_USER_IDS`).
 - Use as reply to a user's message.

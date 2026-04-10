@@ -19,8 +19,8 @@ def _menu_kb(update: Update, context: ContextTypes.DEFAULT_TYPE, issuer_id: int)
 
     rows = [
         [
-            InlineKeyboardButton("📊 Статистика", callback_data=f"menu:stats:{issuer_id}"),
-            InlineKeyboardButton("👥 Актив", callback_data=f"menu:activity:{issuer_id}"),
+            InlineKeyboardButton("📊 Профиль", callback_data=f"menu:stats:{issuer_id}"),
+            InlineKeyboardButton("🔥 Ноулайферы", callback_data=f"menu:activity:{issuer_id}"),
         ],
         [InlineKeyboardButton("💬 Топ пар", callback_data=f"menu:pairs:{issuer_id}"), InlineKeyboardButton("📆 Топ недели", callback_data=f"menu:week:{issuer_id}")],
         [InlineKeyboardButton("📣 Хипиш", callback_data=f"menu:fun_hipish:{issuer_id}"), InlineKeyboardButton("💥 Дни без драмы", callback_data=f"menu:drama_days:{issuer_id}")],
@@ -202,7 +202,7 @@ async def menu_action(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
         if not rows:
             text = "Пока нет данных за последние 7 дней."
         else:
-            lines = ["📆 Топ недели (7 дней)", "───────────────────"]
+            lines = ["📆 Топ ноулайферов (7 дней)", "───────────────────"]
             for i, (uid2, cnt, last_at, username, first_name) in enumerate(rows, 1):
                 label = f"@{username}" if username else (first_name or str(uid2))
                 lines.append(f"{i}. {label} — {cnt} | {last_at or '—'}")
@@ -230,7 +230,7 @@ async def menu_action(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
         if not rows:
             text = "Пока нет данных по активности."
         else:
-            lines = ["👥 Топ активности", "───────────────────"]
+            lines = ["🔥 Топ ноулайферов (всё время)", "───────────────────"]
             for i, (username, first_name, cnt, last_at) in enumerate(rows, 1):
                 label = f"@{username}" if username else (first_name or "user")
                 lines.append(f"{i}. {label} — {cnt} | {last_at or '—'}")
