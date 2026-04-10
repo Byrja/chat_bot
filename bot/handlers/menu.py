@@ -23,7 +23,7 @@ def _menu_kb(update: Update, context: ContextTypes.DEFAULT_TYPE, issuer_id: int)
             InlineKeyboardButton("👥 Актив", callback_data=f"menu:activity:{issuer_id}"),
         ],
         [InlineKeyboardButton("💬 Топ пар", callback_data=f"menu:pairs:{issuer_id}"), InlineKeyboardButton("📆 Топ недели", callback_data=f"menu:week:{issuer_id}")],
-        [InlineKeyboardButton("📣 Хипиш", callback_data=f"menu:fun_hipish:{issuer_id}")],
+        [InlineKeyboardButton("📣 Хипиш", callback_data=f"menu:fun_hipish:{issuer_id}"), InlineKeyboardButton("💥 Дни без драмы", callback_data=f"menu:drama_days:{issuer_id}")],
         [InlineKeyboardButton("🎭 Развлечения", callback_data=f"menu:fun:{issuer_id}")],
         [InlineKeyboardButton("⚙️ Настройки", callback_data=f"menu:settings:{issuer_id}")],
     ]
@@ -237,6 +237,12 @@ async def menu_action(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
             text = "\n".join(lines)
 
         await query.edit_message_text(text, reply_markup=_back_kb(issuer_id))
+        return
+
+    if action == "drama_days":
+        from bot.handlers.drama import days_without_drama
+
+        await days_without_drama(update, context)
         return
 
     if action == "fun":

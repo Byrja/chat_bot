@@ -139,6 +139,13 @@ CREATE TABLE IF NOT EXISTS quotes (
 
 CREATE INDEX IF NOT EXISTS idx_quotes_chat_created
 ON quotes(chat_id, created_at DESC);
+
+CREATE TABLE IF NOT EXISTS drama_counter (
+    chat_id INTEGER PRIMARY KEY,
+    last_reset_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_by_tg_user_id INTEGER,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
 """
 
 
