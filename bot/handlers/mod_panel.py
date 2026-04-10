@@ -30,10 +30,11 @@ async def mod_panel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         await update.message.reply_text("Нельзя модерировать бота")
         return
 
+    issuer_id = update.effective_user.id
     kb = InlineKeyboardMarkup([
-        [InlineKeyboardButton("⚠️ warn", callback_data=f"modquick:warn:{target.id}")],
-        [InlineKeyboardButton("🔇 mute 30m", callback_data=f"modquick:mute30:{target.id}")],
-        [InlineKeyboardButton("⛔ ban", callback_data=f"modquick:ban:{target.id}")],
+        [InlineKeyboardButton("⚠️ warn", callback_data=f"modquick:warn:{target.id}:{issuer_id}")],
+        [InlineKeyboardButton("🔇 mute 30m", callback_data=f"modquick:mute30:{target.id}:{issuer_id}")],
+        [InlineKeyboardButton("⛔ ban", callback_data=f"modquick:ban:{target.id}:{issuer_id}")],
     ])
     await update.message.reply_text(f"Мод-панель для {target.id}", reply_markup=kb)
 
@@ -50,13 +51,18 @@ async def mod_quick_action(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         return
 
     parts = (query.data or "").split(":")
-    if len(parts) != 3:
+    if len(parts) != 4:
         return
     action = parts[1]
     try:
         target_id = int(parts[2])
+        issuer_id = int(parts[3])
     except Exception:
         await query.edit_message_text("Некорректный target")
+        return
+
+    if update.effective_user.id != issuer_id:
+        await query.answer("Эта панель не для тебя", show_alert=True)
         return
 
     if action == "warn":
