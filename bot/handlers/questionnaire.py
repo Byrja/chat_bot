@@ -3,13 +3,14 @@ from telegram.ext import ContextTypes, ConversationHandler
 
 from bot.config import Settings
 from bot.repositories.applications import (
+    get_answers_map,
     get_or_create_draft_application,
     save_answer,
     upsert_user,
 )
 from bot.services.validation import validate_age
 
-WAIT_NAME, WAIT_DISTRICT, WAIT_AGE, WAIT_HOBBY, WAIT_ALCOHOL, WAIT_AVAILABILITY = range(6)
+WAIT_NAME, WAIT_DISTRICT, WAIT_AGE, WAIT_HOBBY, WAIT_ALCOHOL, WAIT_AVAILABILITY, WAIT_PHOTO = range(7)
 
 
 def _settings(context: ContextTypes.DEFAULT_TYPE) -> Settings:
@@ -117,7 +118,42 @@ async def receive_availability(update: Update, context: ContextTypes.DEFAULT_TYP
     s = _settings(context)
     app_id = int(context.user_data["application_id"])
     save_answer(s.sqlite_path, app_id, "availability", text, 7)
-    await update.message.reply_text("Step 1.4b завершён: свободное время сохранено.")
+    await update.message.reply_text("Вопрос 7/8: Прикрепи фотографию, чтобы мы знали, с кем нам предстоит дружить!")
+    return WAIT_PHOTO
+
+
+async def receive_photo(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    if not update.message:
+        return WAIT_PHOTO
+    if not update.message.photo:
+        await update.message.reply_text("Нужна именно фотография (как фото-сообщение).")
+        return WAIT_PHOTO
+
+    s = _settings(context)
+    app_id = int(context.user_data["application_id"])
+    photo = update.message.photo[-1]
+    save_answer(s.sqlite_path, app_id, "photo_file_id", photo.file_id, 8)
+
+    answers = get_answers_map(s.sqlite_path, app_id)
+    preview = (
+        "🧾 Предпросмотр анкеты\n"
+        "───────────────────\n"
+        f"Имя: {answers.get('name', '—')}\n"
+        f"TG: {answers.get('tg_handle', '—')}\n"
+        f"Район: {answers.get('district', '—')}\n"
+        f"Возраст: {answers.get('age', '—')}\n"
+        f"Хобби: {answers.get('hobby', '—')}\n"
+        f"Алкоголь: {answers.get('alcohol', '—')}\n"
+        f"Свободное время: {answers.get('availability', '—')}\n"
+        "Фото: прикреплено ✅"
+    )
+    await update.message.reply_text(
+        preview,
+        reply_markup=InlineKeyboardMarkup([
+            [InlineKeyboardButton("✏️ Редактировать", callback_data="app:edit")],
+            [InlineKeyboardButton("✅ Отправить", callback_data="app:submit")],
+        ]),
+    )
     return ConversationHandler.END
 
 

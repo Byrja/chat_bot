@@ -10,6 +10,7 @@ from bot.handlers.questionnaire import (
     WAIT_HOBBY,
     WAIT_NAME,
     WAIT_AVAILABILITY,
+    WAIT_PHOTO,
     questionnaire_cancel,
     questionnaire_start,
     receive_age,
@@ -17,6 +18,7 @@ from bot.handlers.questionnaire import (
     receive_district,
     receive_hobby,
     receive_name,
+    receive_photo,
 )
 from bot.handlers.start import health
 
@@ -37,6 +39,7 @@ def build_app(settings: Settings) -> Application:
             WAIT_HOBBY: [MessageHandler(filters.TEXT & ~filters.COMMAND, receive_hobby)],
             WAIT_ALCOHOL: [CallbackQueryHandler(receive_alcohol_choice, pattern=r"^alc:(yes|no|social)$")],
             WAIT_AVAILABILITY: [MessageHandler(filters.TEXT & ~filters.COMMAND, receive_availability)],
+            WAIT_PHOTO: [MessageHandler(filters.PHOTO | (filters.TEXT & ~filters.COMMAND), receive_photo)],
         },
         fallbacks=[CommandHandler("cancel", questionnaire_cancel)],
         allow_reentry=True,

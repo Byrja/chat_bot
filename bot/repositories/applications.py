@@ -37,6 +37,18 @@ def get_or_create_draft_application(db_path: str, tg_user_id: int) -> int:
     return app_id
 
 
+def get_answers_map(db_path: str, application_id: int) -> dict[str, str]:
+    conn = get_conn(db_path)
+    cur = conn.cursor()
+    cur.execute(
+        "SELECT question_code, answer_text FROM application_answers WHERE application_id = ? ORDER BY position ASC",
+        (application_id,),
+    )
+    rows = cur.fetchall()
+    conn.close()
+    return {str(r[0]): str(r[1]) for r in rows}
+
+
 def save_answer(db_path: str, application_id: int, question_code: str, answer_text: str, position: int) -> None:
     conn = get_conn(db_path)
     cur = conn.cursor()
