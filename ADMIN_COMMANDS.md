@@ -36,6 +36,10 @@
 ### `/menu`
 - Opens inline navigation menu with role-based sections.
 
+### `анкета @username`
+- Text trigger in chat.
+- Bot posts the latest non-draft questionnaire for that username.
+
 ### `/mute_me [minutes]`
 - Available for all participants.
 - Self-mutes sender in current chat. Default: 30 minutes.

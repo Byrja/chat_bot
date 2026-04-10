@@ -27,6 +27,7 @@ from bot.handlers.questionnaire import (
 )
 from bot.handlers.activity import show_activity, track_message_activity
 from bot.handlers.menu import menu_action, show_menu
+from bot.handlers.questionnaire_lookup import questionnaire_lookup
 from bot.handlers.admin_sanctions import ban_user, mute_user, warn_user
 from bot.handlers.admin_stats import admin_stats
 from bot.handlers.errors import on_error
@@ -77,7 +78,8 @@ def build_app(settings: Settings) -> Application:
     app.add_handler(CommandHandler("whois", whois_command))
     app.add_handler(CommandHandler("activity", show_activity))
     app.add_handler(CommandHandler("menu", show_menu))
-    app.add_handler(CallbackQueryHandler(menu_action, pattern=r"^menu:(start|stats|activity|fun|mod)$"))
+    app.add_handler(CallbackQueryHandler(menu_action, pattern=r"^menu:(stats|activity|fun|mod)$"))
+    app.add_handler(MessageHandler(filters.Regex(r"(?i)^\s*анкета\s+@?[a-zA-Z0-9_]{3,}\s*$"), questionnaire_lookup))
     app.add_handler(CommandHandler("mute_me", mute_me))
     app.add_handler(CommandHandler("hipish", hipish))
     app.add_handler(MessageHandler(filters.ChatType.GROUPS & ~filters.COMMAND, track_message_activity))

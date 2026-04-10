@@ -14,7 +14,6 @@ def _menu_kb(update: Update, context: ContextTypes.DEFAULT_TYPE) -> InlineKeyboa
     uid = update.effective_user.id if update.effective_user else 0
 
     rows = [
-        [InlineKeyboardButton("📝 Анкета", callback_data="menu:start")],
         [InlineKeyboardButton("📊 Статистика", callback_data="menu:stats"), InlineKeyboardButton("👥 Актив", callback_data="menu:activity")],
         [InlineKeyboardButton("🎭 Развлечения", callback_data="menu:fun")],
     ]
@@ -43,9 +42,7 @@ async def menu_action(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
     await query.answer()
 
     action = (query.data or "menu:").split(":", 1)[1]
-    if action == "start":
-        await query.message.reply_text("Запуск анкеты: нажми /start")
-    elif action == "stats":
+    if action == "stats":
         await query.message.reply_text("Статистика: /admin_stats")
     elif action == "activity":
         await query.message.reply_text("Актив: /activity")
