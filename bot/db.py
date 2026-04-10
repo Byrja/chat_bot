@@ -59,6 +59,22 @@ ON applications(tg_user_id, created_at);
 
 CREATE INDEX IF NOT EXISTS idx_answers_app_position
 ON application_answers(application_id, position);
+
+CREATE TABLE IF NOT EXISTS member_activity (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    chat_id INTEGER NOT NULL,
+    tg_user_id INTEGER NOT NULL,
+    username TEXT,
+    first_name TEXT,
+    msg_count INTEGER NOT NULL DEFAULT 0,
+    last_message_at DATETIME,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(chat_id, tg_user_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_member_activity_chat_msgcount
+ON member_activity(chat_id, msg_count DESC);
 """
 
 
