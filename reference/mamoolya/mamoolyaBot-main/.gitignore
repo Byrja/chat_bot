@@ -1,0 +1,46 @@
+# project specific
+chat.db
+chat.sqbpro
+bot_debug.log
+.env
+userpics
+manage_bot.tmp
+.last_git_status.txt
+
+# ides
+.idea
+
+# python
+.venv
+venv/
+
+
+## Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[codz]
+*$py.class
+
+## Distribution / packaging
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+#webapp frontend
+node_modules/
+userpics/
+.svelte-kit/
+.DS_Store

@@ -1,0 +1,57 @@
+[project]
+name = "mamulya-bot"
+version = "0.1.0"
+description = "krsksoc's Telegram bot 'Maamuulyaa'"
+readme = "README.md"
+requires-python = ">=3.10"
+
+# Core bot dependencies
+dependencies = [
+    "requests>=2.32.4",
+    "emoji>=2.14.1",
+    "pytz>=2025.2",
+    "python-telegram-bot>=21.6",
+    "APScheduler>=3.11.0",
+    "python-dotenv>=1.0.1",
+    "openai>=1.62.0",
+    "Pillow>=10.4.0",
+]
+
+[project.optional-dependencies]
+# Webapp python backend.
+webapp = [
+    "flask>=3.0.3",
+    "flask-cors>=4.0.0",
+]
+
+ai = [
+    "google-generativeai>=0.7.2",
+]
+
+dev = [
+    "pytest>=8.0.0",
+    "pytest-asyncio>=0.23.8",
+    "black>=24.0.0",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["mamoolyaBot"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.0.0",
+    "pytest-asyncio>=0.23.8",
+    "black>=24.0.0",
+]
+
+[tool.black]
+line-length = 88
+target-version = ["py310"]
