@@ -228,7 +228,10 @@ async def preview_action(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     return ConversationHandler.END
 
 
-async def moderation_action(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+WAIT_REJECT_REASON = 90
+
+
+async def moderation_action(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int | None:
     query = update.callback_query
     if not query or not update.effective_user:
         return
@@ -268,16 +271,46 @@ async def moderation_action(update: Update, context: ContextTypes.DEFAULT_TYPE) 
         return
 
     if action == "reject":
-        ok = set_decision(s.sqlite_path, app_id, "rejected", update.effective_user.id, reject_reason=None)
-        if not ok:
-            await query.edit_message_text("Заявка уже обработана или недоступна.")
-            return
-        owner = get_application_for_admin(s.sqlite_path, app_id)
-        if owner:
-            owner_id, _ = owner
-            await context.bot.send_message(chat_id=owner_id, text="К сожалению, по анкете отказ. Можно подать повторно позже.")
-        await query.edit_message_text(f"Анкета #{app_id} отклонена ❌")
-        return
+        context.user_data["reject_app_id"] = app_id
+        await query.edit_message_text(
+            f"Анкета #{app_id}: укажи причину отказа текстом (или отправь '-' чтобы без причины)."
+        )
+        return WAIT_REJECT_REASON
+
+
+async def receive_reject_reason(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    if not update.message or not update.effective_user:
+        return ConversationHandler.END
+
+    s = _settings(context)
+    if update.effective_user.id not in s.admin_user_ids:
+        await update.message.reply_text("Недостаточно прав")
+        return ConversationHandler.END
+
+    app_id = int(context.user_data.get("reject_app_id", 0) or 0)
+    if not app_id:
+        await update.message.reply_text("Не найдена заявка для отказа.")
+        return ConversationHandler.END
+
+    reason_raw = (update.message.text or "").strip()
+    reason = None if reason_raw in {"", "-", "нет", "без причины"} else reason_raw[:500]
+
+    ok = set_decision(s.sqlite_path, app_id, "rejected", update.effective_user.id, reject_reason=reason)
+    if not ok:
+        await update.message.reply_text("Заявка уже обработана или недоступна.")
+        return ConversationHandler.END
+
+    owner = get_application_for_admin(s.sqlite_path, app_id)
+    if owner:
+        owner_id, _ = owner
+        msg = "К сожалению, по анкете отказ. Можно подать повторно позже."
+        if reason:
+            msg += f"\nПричина: {reason}"
+        await context.bot.send_message(chat_id=owner_id, text=msg)
+
+    await update.message.reply_text(f"Анкета #{app_id} отклонена ❌")
+    context.user_data.pop("reject_app_id", None)
+    return ConversationHandler.END
 
 
 async def questionnaire_cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:

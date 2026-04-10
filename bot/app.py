@@ -12,6 +12,7 @@ from bot.handlers.questionnaire import (
     WAIT_AVAILABILITY,
     WAIT_PHOTO,
     WAIT_PREVIEW,
+    WAIT_REJECT_REASON,
     moderation_action,
     preview_action,
     questionnaire_cancel,
@@ -22,6 +23,7 @@ from bot.handlers.questionnaire import (
     receive_hobby,
     receive_name,
     receive_photo,
+    receive_reject_reason,
 )
 from bot.handlers.start import health
 
@@ -50,7 +52,16 @@ def build_app(settings: Settings) -> Application:
     )
 
     app.add_handler(flow)
-    app.add_handler(CallbackQueryHandler(moderation_action, pattern=r"^mod:(approve|reject):[0-9]+$"))
+
+    mod_flow = ConversationHandler(
+        entry_points=[CallbackQueryHandler(moderation_action, pattern=r"^mod:(approve|reject):[0-9]+$")],
+        states={
+            WAIT_REJECT_REASON: [MessageHandler(filters.TEXT & ~filters.COMMAND, receive_reject_reason)],
+        },
+        fallbacks=[CommandHandler("cancel", questionnaire_cancel)],
+        allow_reentry=True,
+    )
+    app.add_handler(mod_flow)
     app.add_handler(CommandHandler("health", health))
     return app
 
