@@ -3,6 +3,7 @@ from telegram.ext import ContextTypes
 
 from bot.config import Settings
 from bot.repositories.sanctions import add_sanction
+from bot.services.rbac import has_permission
 from bot.services.timeparse import parse_mute_duration
 
 
@@ -10,17 +11,18 @@ def _settings(context: ContextTypes.DEFAULT_TYPE) -> Settings:
     return context.application.bot_data["settings"]
 
 
-def _is_admin(update: Update, context: ContextTypes.DEFAULT_TYPE) -> bool:
+def _can(update: Update, context: ContextTypes.DEFAULT_TYPE, command: str) -> bool:
     user = update.effective_user
     if not user:
         return False
-    return user.id in _settings(context).admin_user_ids
+    s = _settings(context)
+    return has_permission(s, s.sqlite_path, user.id, command)
 
 
 async def mute_user(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if not update.message or not update.effective_chat:
         return
-    if not _is_admin(update, context):
+    if not _can(update, context, "mute"):
         await update.message.reply_text("Недостаточно прав")
         return
 
@@ -73,7 +75,7 @@ async def mute_user(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 async def ban_user(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if not update.message or not update.effective_chat:
         return
-    if not _is_admin(update, context):
+    if not _can(update, context, "ban"):
         await update.message.reply_text("Недостаточно прав")
         return
 
@@ -117,7 +119,7 @@ async def ban_user(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 async def warn_user(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if not update.message:
         return
-    if not _is_admin(update, context):
+    if not _can(update, context, "warn"):
         await update.message.reply_text("Недостаточно прав")
         return
 

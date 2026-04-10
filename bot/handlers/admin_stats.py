@@ -3,6 +3,7 @@ from telegram.ext import ContextTypes
 
 from bot.config import Settings
 from bot.db import get_conn
+from bot.services.rbac import has_permission
 
 
 def _settings(context: ContextTypes.DEFAULT_TYPE) -> Settings:
@@ -14,7 +15,7 @@ async def admin_stats(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
         return
 
     s = _settings(context)
-    if update.effective_user.id not in s.admin_user_ids:
+    if not has_permission(s, s.sqlite_path, update.effective_user.id, "admin_stats"):
         await update.message.reply_text("Недостаточно прав")
         return
 

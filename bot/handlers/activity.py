@@ -3,17 +3,19 @@ from telegram.ext import ContextTypes
 
 from bot.config import Settings
 from bot.repositories.activity import bump_message_activity, get_top_activity
+from bot.services.rbac import has_permission
 
 
 def _settings(context: ContextTypes.DEFAULT_TYPE) -> Settings:
     return context.application.bot_data["settings"]
 
 
-def _is_admin(update: Update, context: ContextTypes.DEFAULT_TYPE) -> bool:
+def _can_activity(update: Update, context: ContextTypes.DEFAULT_TYPE) -> bool:
     user = update.effective_user
     if not user:
         return False
-    return user.id in _settings(context).admin_user_ids
+    s = _settings(context)
+    return has_permission(s, s.sqlite_path, user.id, "activity")
 
 
 async def track_message_activity(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -43,7 +45,7 @@ async def track_message_activity(update: Update, context: ContextTypes.DEFAULT_T
 async def show_activity(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if not update.message or not update.effective_chat:
         return
-    if not _is_admin(update, context):
+    if not _can_activity(update, context):
         await update.message.reply_text("Недостаточно прав")
         return
 
