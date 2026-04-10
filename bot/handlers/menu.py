@@ -21,6 +21,7 @@ def _menu_kb(update: Update, context: ContextTypes.DEFAULT_TYPE, issuer_id: int)
             InlineKeyboardButton("📊 Статистика", callback_data=f"menu:stats:{issuer_id}"),
             InlineKeyboardButton("👥 Актив", callback_data=f"menu:activity:{issuer_id}"),
         ],
+        [InlineKeyboardButton("📣 Хипиш", callback_data=f"menu:fun_hipish:{issuer_id}")],
         [InlineKeyboardButton("🎭 Развлечения", callback_data=f"menu:fun:{issuer_id}")],
     ]
 
@@ -134,7 +135,6 @@ async def menu_action(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
         await query.edit_message_text(
             "🎭 Развлечения\nВыбери действие:",
             reply_markup=InlineKeyboardMarkup([
-                [InlineKeyboardButton("📣 Хипиш", callback_data=f"menu:fun_hipish:{issuer_id}")],
                 [InlineKeyboardButton("🔇 Самомут 15 мин", callback_data=f"menu:fun_muteme15:{issuer_id}")],
                 [InlineKeyboardButton("⬅️ В меню", callback_data=f"menu:home:{issuer_id}")],
             ]),
