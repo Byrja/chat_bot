@@ -28,6 +28,7 @@ from bot.handlers.questionnaire import (
 from bot.handlers.activity import show_activity, track_message_activity
 from bot.handlers.admin_sanctions import ban_user, mute_user, warn_user
 from bot.handlers.admin_stats import admin_stats
+from bot.handlers.fun import hipish, mute_me
 from bot.handlers.roles_admin import set_role_command, whois_command
 from bot.handlers.start import health
 
@@ -73,6 +74,8 @@ def build_app(settings: Settings) -> Application:
     app.add_handler(CommandHandler("role", set_role_command))
     app.add_handler(CommandHandler("whois", whois_command))
     app.add_handler(CommandHandler("activity", show_activity))
+    app.add_handler(CommandHandler("mute_me", mute_me))
+    app.add_handler(CommandHandler("hipish", hipish))
     app.add_handler(MessageHandler(filters.ChatType.GROUPS & ~filters.COMMAND, track_message_activity))
     app.add_handler(CommandHandler("health", health))
     return app

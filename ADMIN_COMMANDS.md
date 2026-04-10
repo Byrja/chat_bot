@@ -33,6 +33,14 @@
 - If used in reply: shows target user's role.
 - Without reply: shows your role.
 
+### `/mute_me [minutes]`
+- Available for all participants.
+- Self-mutes sender in current chat. Default: 30 minutes.
+
+### `/hipish`
+- Available for all participants.
+- Mentions configured admins.
+
 ## Notes
 - Commands available only for IDs listed in `ADMIN_USER_IDS`.
 - Bot must have sufficient admin rights in target chat.
