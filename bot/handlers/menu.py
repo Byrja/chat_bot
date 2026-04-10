@@ -244,6 +244,8 @@ async def menu_action(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
             "🎭 Развлечения\nВыбери действие:",
             reply_markup=InlineKeyboardMarkup([
                 [InlineKeyboardButton("🔮 Гороскоп", callback_data=f"menu:fun_horoscope:{issuer_id}")],
+                [InlineKeyboardButton("📚 Случайная цитата", callback_data=f"menu:fun_quote_random:{issuer_id}")],
+                [InlineKeyboardButton("🆕 Последняя цитата", callback_data=f"menu:fun_quote_latest:{issuer_id}")],
                 [InlineKeyboardButton("⬅️ В меню", callback_data=f"menu:home:{issuer_id}")],
             ]),
         )
@@ -253,6 +255,18 @@ async def menu_action(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
         from bot.handlers.horoscope import horoscope
 
         await horoscope(update, context)
+        return
+
+    if action == "fun_quote_random":
+        from bot.handlers.quotes import random_quote_cmd
+
+        await random_quote_cmd(update, context)
+        return
+
+    if action == "fun_quote_latest":
+        from bot.handlers.quotes import latest_quote_cmd
+
+        await latest_quote_cmd(update, context)
         return
 
     if action == "fun_hipish":

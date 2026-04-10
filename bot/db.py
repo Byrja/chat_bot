@@ -125,6 +125,20 @@ CREATE TABLE IF NOT EXISTS birthday_notifications (
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     UNIQUE(tg_user_id, event_type, event_date)
 );
+
+CREATE TABLE IF NOT EXISTS quotes (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    chat_id INTEGER NOT NULL,
+    source_message_id INTEGER,
+    author_tg_user_id INTEGER,
+    author_label TEXT,
+    quote_text TEXT NOT NULL,
+    added_by_tg_user_id INTEGER,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_quotes_chat_created
+ON quotes(chat_id, created_at DESC);
 """
 
 
