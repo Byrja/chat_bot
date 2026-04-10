@@ -322,27 +322,17 @@ async def menu_action(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
 
         conn = get_conn(s.sqlite_path)
         cur = conn.cursor()
-        cur.execute("SELECT COUNT(*) FROM applications WHERE tg_user_id = ?", (uid,))
-        apps_total = int(cur.fetchone()[0] or 0)
-        cur.execute("SELECT COUNT(*) FROM applications WHERE tg_user_id = ? AND status='approved'", (uid,))
-        apps_approved = int(cur.fetchone()[0] or 0)
-        cur.execute(
-            "SELECT status, COALESCE(submitted_at, created_at) FROM applications WHERE tg_user_id = ? ORDER BY id DESC LIMIT 1",
-            (uid,),
-        )
-        last = cur.fetchone()
+        cur.execute("SELECT score FROM karma_scores WHERE chat_id = ? AND tg_user_id = ?", (s.main_chat_id, uid))
+        k = cur.fetchone()
         conn.close()
-        last_status = last[0] if last else "—"
-        last_dt = last[1] if last else "—"
+        karma = int(k[0]) if k else 0
 
         await query.edit_message_text(
             "⚙️ Твой профиль и настройки\n"
             "───────────────────\n"
             f"Роль: {role}\n"
             f"Дата рождения: {btxt}\n"
-            f"Анкет подано: {apps_total}\n"
-            f"Одобрено: {apps_approved}\n"
-            f"Последняя анкета: {last_status} ({last_dt})\n\n"
+            f"Карма: {karma}\n\n"
             "Выбери действие:",
             reply_markup=InlineKeyboardMarkup([
                 [InlineKeyboardButton("🔇 Самомут 15 мин", callback_data=f"menu:settings_muteme15:{issuer_id}")],

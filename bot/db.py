@@ -146,6 +146,25 @@ CREATE TABLE IF NOT EXISTS drama_counter (
     updated_by_tg_user_id INTEGER,
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
+
+CREATE TABLE IF NOT EXISTS karma_scores (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    chat_id INTEGER NOT NULL,
+    tg_user_id INTEGER NOT NULL,
+    score INTEGER NOT NULL DEFAULT 0,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(chat_id, tg_user_id)
+);
+
+CREATE TABLE IF NOT EXISTS karma_events (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    chat_id INTEGER NOT NULL,
+    from_tg_user_id INTEGER NOT NULL,
+    to_tg_user_id INTEGER NOT NULL,
+    delta INTEGER NOT NULL,
+    reason TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
 """
 
 

@@ -36,6 +36,7 @@ from bot.handlers.admin_stats import admin_stats
 from bot.handlers.errors import on_error
 from bot.handlers.drama import days_without_drama, drama_reset
 from bot.handlers.fun import hipish, mute_me
+from bot.handlers.karma import karma_me, karma_minus, karma_plus, karma_top_cmd
 from bot.handlers.horoscope import horoscope
 from bot.handlers.roles_admin import set_role_command, whois_command
 from bot.handlers.start import health
@@ -93,6 +94,10 @@ def build_app(settings: Settings) -> Application:
     app.add_handler(CommandHandler("latest_quote", latest_quote_cmd))
     app.add_handler(CommandHandler("days_without_drama", days_without_drama))
     app.add_handler(CommandHandler("drama", drama_reset))
+    app.add_handler(CommandHandler("plus", karma_plus))
+    app.add_handler(CommandHandler("minus", karma_minus))
+    app.add_handler(CommandHandler("karma", karma_me))
+    app.add_handler(CommandHandler("karma_top", karma_top_cmd))
     app.add_handler(CommandHandler("menu", show_menu))
     app.add_handler(CommandHandler("horoscope", horoscope))
     app.add_handler(CommandHandler("mod", mod_panel))
