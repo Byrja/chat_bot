@@ -3,7 +3,7 @@ from telegram.ext import ContextTypes
 
 from bot.config import Settings
 from bot.repositories.applications import save_answer
-from bot.handlers.questionnaire import WAIT_ALCOHOL
+from bot.handlers.questionnaire import WAIT_ALCOHOL, WAIT_AVAILABILITY
 
 
 _MAP = {
@@ -32,8 +32,8 @@ async def receive_alcohol_choice(update: Update, context: ContextTypes.DEFAULT_T
     app_id = int(context.user_data["application_id"])
     save_answer(s.sqlite_path, app_id, "alcohol", value, 6)
 
-    await query.edit_message_text(
-        "Принято ✅\n"
-        "Step 1.4a завершён: алкоголь сохранён."
+    await query.edit_message_text("Принято ✅")
+    await query.message.reply_text(
+        "Вопрос 6/8: Как часто у тебя есть свободное время и сможешь ли посещать наши сходки?"
     )
-    return -1
+    return WAIT_AVAILABILITY

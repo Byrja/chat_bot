@@ -9,7 +9,7 @@ from bot.repositories.applications import (
 )
 from bot.services.validation import validate_age
 
-WAIT_NAME, WAIT_DISTRICT, WAIT_AGE, WAIT_HOBBY, WAIT_ALCOHOL = range(5)
+WAIT_NAME, WAIT_DISTRICT, WAIT_AGE, WAIT_HOBBY, WAIT_ALCOHOL, WAIT_AVAILABILITY = range(6)
 
 
 def _settings(context: ContextTypes.DEFAULT_TYPE) -> Settings:
@@ -104,6 +104,21 @@ async def receive_hobby(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
         ]),
     )
     return WAIT_ALCOHOL
+
+
+async def receive_availability(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    if not update.message:
+        return WAIT_AVAILABILITY
+    text = (update.message.text or "").strip()
+    if len(text) < 4:
+        await update.message.reply_text("Напиши чуть подробнее, чтобы админам было проще принять решение.")
+        return WAIT_AVAILABILITY
+
+    s = _settings(context)
+    app_id = int(context.user_data["application_id"])
+    save_answer(s.sqlite_path, app_id, "availability", text, 7)
+    await update.message.reply_text("Step 1.4b завершён: свободное время сохранено.")
+    return ConversationHandler.END
 
 
 async def questionnaire_cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
