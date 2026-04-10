@@ -6,6 +6,7 @@ from telegram.ext import ContextTypes
 
 from bot.config import Settings
 from bot.db import get_conn
+from bot.repositories.profile import get_birthdate, set_birthdate
 from bot.services.rbac import effective_role, has_permission
 
 
@@ -23,6 +24,7 @@ def _menu_kb(update: Update, context: ContextTypes.DEFAULT_TYPE, issuer_id: int)
         ],
         [InlineKeyboardButton("📣 Хипиш", callback_data=f"menu:fun_hipish:{issuer_id}")],
         [InlineKeyboardButton("🎭 Развлечения", callback_data=f"menu:fun:{issuer_id}")],
+        [InlineKeyboardButton("⚙️ Настройки", callback_data=f"menu:settings:{issuer_id}")],
     ]
 
     if has_permission(s, s.sqlite_path, issuer_id, "warn"):
@@ -133,11 +135,8 @@ async def menu_action(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
 
     if action == "fun":
         await query.edit_message_text(
-            "🎭 Развлечения\nВыбери действие:",
-            reply_markup=InlineKeyboardMarkup([
-                [InlineKeyboardButton("🔇 Самомут 15 мин", callback_data=f"menu:fun_muteme15:{issuer_id}")],
-                [InlineKeyboardButton("⬅️ В меню", callback_data=f"menu:home:{issuer_id}")],
-            ]),
+            "🎭 Развлечения\nПока доступен раздел общения и активности.",
+            reply_markup=_back_kb(issuer_id),
         )
         return
 
@@ -181,7 +180,24 @@ async def menu_action(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
         context.application.bot_data[key] = now
         return
 
-    if action == "fun_muteme15":
+    if action == "settings":
+        b = get_birthdate(s.sqlite_path, uid)
+        btxt = f"{b[0]:02d}.{b[1]:02d}" if b else "не задана"
+        await query.edit_message_text(
+            "⚙️ Твои настройки\n"
+            f"Дата рождения: {btxt}\n"
+            "Выбери действие:",
+            reply_markup=InlineKeyboardMarkup([
+                [InlineKeyboardButton("🔇 Самомут 15 мин", callback_data=f"menu:settings_muteme15:{issuer_id}")],
+                [InlineKeyboardButton("🎂 Указать дату рождения", callback_data=f"menu:settings_bday:{issuer_id}")],
+                [InlineKeyboardButton("📝 Редактировать анкету", callback_data=f"menu:settings_editform:{issuer_id}")],
+                [InlineKeyboardButton("🚪 Kick me", callback_data=f"menu:settings_kick_confirm:{issuer_id}")],
+                [InlineKeyboardButton("⬅️ В меню", callback_data=f"menu:home:{issuer_id}")],
+            ]),
+        )
+        return
+
+    if action == "settings_muteme15":
         try:
             await context.bot.restrict_chat_member(
                 chat_id=update.effective_chat.id,
@@ -192,6 +208,45 @@ async def menu_action(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
             await query.edit_message_text("Самомут на 15 минут активирован", reply_markup=_back_kb(issuer_id))
         except Exception as e:
             await query.edit_message_text(f"Не удалось выдать самомут: {e}", reply_markup=_back_kb(issuer_id))
+        return
+
+    if action == "settings_bday":
+        context.user_data["await_birthdate_issuer"] = issuer_id
+        await query.edit_message_text(
+            "Введи дату рождения в формате ДД.ММ (например 05.11)",
+            reply_markup=_back_kb(issuer_id),
+        )
+        return
+
+    if action == "settings_editform":
+        await query.edit_message_text(
+            "Чтобы обновить свою анкету, просто нажми /start и пройди заново.",
+            reply_markup=_back_kb(issuer_id),
+        )
+        return
+
+    if action == "settings_kick_confirm":
+        await query.edit_message_text(
+            "Ты точно хочешь сам себя кикнуть из чата?",
+            reply_markup=InlineKeyboardMarkup([
+                [InlineKeyboardButton("Да, кикни меня", callback_data=f"menu:settings_kick_do:{issuer_id}")],
+                [InlineKeyboardButton("⬅️ Назад", callback_data=f"menu:settings:{issuer_id}")],
+            ]),
+        )
+        return
+
+    if action == "settings_kick_do":
+        speech = (
+            "🎭 Великий выход…\n"
+            "Ты уходишь как легенда этого чата.\n"
+            "Пусть дорога будет мемной, а вайб — вечным."
+        )
+        await query.edit_message_text(speech)
+        try:
+            await context.bot.ban_chat_member(chat_id=update.effective_chat.id, user_id=uid, revoke_messages=False)
+            await context.bot.unban_chat_member(chat_id=update.effective_chat.id, user_id=uid, only_if_banned=True)
+        except Exception:
+            pass
         return
 
     if action == "mod":

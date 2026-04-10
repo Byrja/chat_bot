@@ -48,6 +48,7 @@
 ### `/mute_me [minutes]`
 - Available for all participants.
 - Self-mutes sender in current chat. Default: 30 minutes.
+- Also available via `⚙️ Настройки` in inline menu.
 
 ### `/hipish`
 - Available for all participants.

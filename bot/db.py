@@ -82,6 +82,13 @@ CREATE TABLE IF NOT EXISTS member_roles (
     assigned_by_tg_user_id INTEGER,
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
+
+CREATE TABLE IF NOT EXISTS member_profiles (
+    tg_user_id INTEGER PRIMARY KEY,
+    birth_day INTEGER,
+    birth_month INTEGER,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
 """
 
 
