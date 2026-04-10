@@ -44,12 +44,24 @@ async def mute_me(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
 
 async def hipish(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    if not update.message:
-        return
-    s = _settings(context)
-    if not s.admin_user_ids:
-        await update.message.reply_text("Админы не настроены")
+    if not update.message or not update.effective_chat:
         return
 
-    mentions = [f'<a href="tg://user?id={uid}">admin:{uid}</a>' for uid in sorted(s.admin_user_ids)]
+    s = _settings(context)
+    ids: set[int] = set(s.admin_user_ids)
+
+    try:
+        admins = await context.bot.get_chat_administrators(update.effective_chat.id)
+        for a in admins:
+            u = a.user
+            if u and not u.is_bot:
+                ids.add(u.id)
+    except Exception:
+        pass
+
+    if not ids:
+        await update.message.reply_text("Админы не найдены")
+        return
+
+    mentions = [f'<a href="tg://user?id={uid}">admin:{uid}</a>' for uid in sorted(ids)]
     await update.message.reply_text("Хипиш! " + " ".join(mentions), parse_mode="HTML")
