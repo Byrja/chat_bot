@@ -36,7 +36,7 @@ from bot.handlers.admin_stats import admin_stats
 from bot.handlers.errors import on_error
 from bot.handlers.drama import days_without_drama, drama_reset
 from bot.handlers.fun import hipish, mute_me
-from bot.handlers.karma import karma_me, karma_minus, karma_plus, karma_top_cmd
+from bot.handlers.karma import karma_me, karma_minus, karma_plus, karma_plusminus_reply, karma_top_cmd
 from bot.handlers.horoscope import horoscope
 from bot.handlers.roles_admin import set_role_command, whois_command
 from bot.handlers.start import health
@@ -101,13 +101,14 @@ def build_app(settings: Settings) -> Application:
     app.add_handler(CommandHandler("menu", show_menu))
     app.add_handler(CommandHandler("horoscope", horoscope))
     app.add_handler(CommandHandler("mod", mod_panel))
-    app.add_handler(CallbackQueryHandler(menu_action, pattern=r"^menu:(home|stats|activity|pairs|pairs_all|pairs_week|week|drama_days|fun|fun_horoscope|fun_quote_random|fun_quote_latest|fun_hipish|mod|settings|settings_muteme15|settings_bday|settings_bday_clear|settings_editform|settings_kick_confirm|settings_kick_do):[0-9]+$"))
+    app.add_handler(CallbackQueryHandler(menu_action, pattern=r"^menu:(home|stats|activity|activity_all|activity_day|activity_week|activity_month|pairs|pairs_all|pairs_week|drama_days|fun|fun_horoscope|fun_quote_random|fun_quote_latest|fun_hipish|mod|settings|settings_muteme15|settings_bday|settings_bday_clear|settings_editform|settings_kick_confirm|settings_kick_do):[0-9]+$"))
     app.add_handler(CallbackQueryHandler(mod_quick_ask_reason, pattern=r"^modquickask:(warn|mute30|ban):[0-9]+:[0-9]+$"))
     app.add_handler(CallbackQueryHandler(mod_quick_action, pattern=r"^modquick:(warn|mute30|ban):[0-9]+:[0-9]+:(spam|abuse|offtopic|other)$"))
     app.add_handler(MessageHandler(filters.Regex(r"(?i)^\s*анкета\s+@?[a-zA-Z0-9_]{3,}\s*$"), questionnaire_lookup))
     app.add_handler(MessageHandler(filters.Regex(r"^\d{1,2}\.\d{1,2}$"), capture_birthdate_input))
     app.add_handler(CommandHandler("mute_me", mute_me))
     app.add_handler(CommandHandler("hipish", hipish))
+    app.add_handler(MessageHandler(filters.Regex(r"^[+-]$") & filters.REPLY, karma_plusminus_reply))
     app.add_handler(MessageHandler(filters.ChatType.GROUPS & ~filters.COMMAND, track_message_activity))
     app.add_handler(CommandHandler("health", health))
     app.add_error_handler(on_error)

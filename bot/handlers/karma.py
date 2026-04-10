@@ -66,6 +66,17 @@ async def karma_me(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     await update.message.reply_text(f"Твоя карма: {val}")
 
 
+async def karma_plusminus_reply(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    if not update.message or not update.message.text:
+        return
+    txt = update.message.text.strip()
+    if txt not in {"+", "-"}:
+        return
+    if not update.message.reply_to_message:
+        return
+    await _karma_delta(update, context, +1 if txt == "+" else -1)
+
+
 async def karma_top_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if not update.message or not update.effective_chat:
         return

@@ -22,7 +22,7 @@ def _menu_kb(update: Update, context: ContextTypes.DEFAULT_TYPE, issuer_id: int)
             InlineKeyboardButton("📊 Профиль", callback_data=f"menu:stats:{issuer_id}"),
             InlineKeyboardButton("🔥 Ноулайферы", callback_data=f"menu:activity:{issuer_id}"),
         ],
-        [InlineKeyboardButton("💬 Топ пар", callback_data=f"menu:pairs:{issuer_id}"), InlineKeyboardButton("📆 Топ недели", callback_data=f"menu:week:{issuer_id}")],
+        [InlineKeyboardButton("💬 Топ пар", callback_data=f"menu:pairs:{issuer_id}")],
         [InlineKeyboardButton("📣 Хипиш", callback_data=f"menu:fun_hipish:{issuer_id}"), InlineKeyboardButton("💥 Дни без драмы", callback_data=f"menu:drama_days:{issuer_id}")],
         [InlineKeyboardButton("🎭 Развлечения", callback_data=f"menu:fun:{issuer_id}")],
         [InlineKeyboardButton("⚙️ Настройки", callback_data=f"menu:settings:{issuer_id}")],
@@ -212,26 +212,66 @@ async def menu_action(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
         return
 
     if action == "activity":
+        await query.edit_message_text(
+            "🔥 Ноулайферы\nВыбери период:",
+            reply_markup=InlineKeyboardMarkup([
+                [InlineKeyboardButton("За всё время", callback_data=f"menu:activity_all:{issuer_id}")],
+                [InlineKeyboardButton("За сутки", callback_data=f"menu:activity_day:{issuer_id}")],
+                [InlineKeyboardButton("За неделю", callback_data=f"menu:activity_week:{issuer_id}")],
+                [InlineKeyboardButton("За месяц", callback_data=f"menu:activity_month:{issuer_id}")],
+                [InlineKeyboardButton("⬅️ В меню", callback_data=f"menu:home:{issuer_id}")],
+            ]),
+        )
+        return
+
+    if action in {"activity_all", "activity_day", "activity_week", "activity_month"}:
         conn = get_conn(s.sqlite_path)
         cur = conn.cursor()
-        cur.execute(
-            """
-            SELECT COALESCE(username,''), COALESCE(first_name,''), msg_count, last_message_at
-            FROM member_activity
-            WHERE chat_id = ?
-            ORDER BY msg_count DESC, datetime(last_message_at) DESC
-            LIMIT 10
-            """,
-            (s.main_chat_id,),
-        )
+        if action == "activity_all":
+            cur.execute(
+                """
+                SELECT COALESCE(username,''), COALESCE(first_name,''), msg_count, last_message_at
+                FROM member_activity
+                WHERE chat_id = ?
+                ORDER BY msg_count DESC, datetime(last_message_at) DESC
+                LIMIT 10
+                """,
+                (s.main_chat_id,),
+            )
+            title = "🔥 Топ ноулайферов (всё время)"
+        else:
+            days = 1 if action == "activity_day" else 7 if action == "activity_week" else 30
+            title = "🔥 Топ ноулайферов (сутки)" if days == 1 else "🔥 Топ ноулайферов (неделя)" if days == 7 else "🔥 Топ ноулайферов (месяц)"
+            cur.execute(
+                """
+                SELECT mm.tg_user_id,
+                       COUNT(*) as c,
+                       MAX(mm.created_at) as last_at,
+                       COALESCE(ma.username, ''),
+                       COALESCE(ma.first_name, '')
+                FROM member_messages mm
+                LEFT JOIN member_activity ma
+                  ON ma.chat_id = mm.chat_id AND ma.tg_user_id = mm.tg_user_id
+                WHERE mm.chat_id = ?
+                  AND datetime(mm.created_at) >= datetime('now', ?)
+                GROUP BY mm.tg_user_id, ma.username, ma.first_name
+                ORDER BY c DESC, datetime(last_at) DESC
+                LIMIT 10
+                """,
+                (s.main_chat_id, f"-{days} days"),
+            )
         rows = cur.fetchall()
         conn.close()
 
         if not rows:
-            text = "Пока нет данных по активности."
+            text = "Пока нет данных по активности за выбранный период."
         else:
-            lines = ["🔥 Топ ноулайферов (всё время)", "───────────────────"]
-            for i, (username, first_name, cnt, last_at) in enumerate(rows, 1):
+            lines = [title, "───────────────────"]
+            for i, row in enumerate(rows, 1):
+                if action == "activity_all":
+                    username, first_name, cnt, last_at = row
+                else:
+                    _uid, cnt, last_at, username, first_name = row
                 label = f"@{username}" if username else (first_name or "user")
                 lines.append(f"{i}. {label} — {cnt} | {last_at or '—'}")
             text = "\n".join(lines)
