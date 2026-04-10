@@ -477,8 +477,8 @@ async def menu_action(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
         await query.edit_message_text(
             "Ты точно хочешь сам себя кикнуть из чата?",
             reply_markup=InlineKeyboardMarkup([
-                [InlineKeyboardButton("Да, кикни меня", callback_data=f"menu:settings_kick_do:{issuer_id}")],
-                [InlineKeyboardButton("⬅️ Назад", callback_data=f"menu:settings:{issuer_id}")],
+                [InlineKeyboardButton("✅ Да", callback_data=f"menu:settings_kick_do:{issuer_id}")],
+                [InlineKeyboardButton("❌ Нет", callback_data=f"menu:settings:{issuer_id}")],
             ]),
         )
         return
