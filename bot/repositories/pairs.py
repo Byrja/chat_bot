@@ -22,18 +22,35 @@ def bump_reply_pair(db_path: str, chat_id: int, from_uid: int, to_uid: int) -> N
     conn.close()
 
 
-def get_top_pairs(db_path: str, chat_id: int, limit: int = 10):
+def get_top_pairs(db_path: str, chat_id: int, limit: int = 10, since_days: int | None = None):
     conn = get_conn(db_path)
     cur = conn.cursor()
+    if since_days is None:
+        cur.execute(
+            """
+            SELECT from_tg_user_id, to_tg_user_id, pair_count, last_reply_at
+            FROM reply_pairs
+            WHERE chat_id = ?
+            ORDER BY pair_count DESC, datetime(last_reply_at) DESC
+            LIMIT ?
+            """,
+            (chat_id, limit),
+        )
+        rows = cur.fetchall()
+        conn.close()
+        return rows
+
+    # Recalculate for recent window from message-level replies (derived from pair last update)
     cur.execute(
         """
         SELECT from_tg_user_id, to_tg_user_id, pair_count, last_reply_at
         FROM reply_pairs
         WHERE chat_id = ?
+          AND datetime(last_reply_at) >= datetime('now', ?)
         ORDER BY pair_count DESC, datetime(last_reply_at) DESC
         LIMIT ?
         """,
-        (chat_id, limit),
+        (chat_id, f"-{since_days} days", limit),
     )
     rows = cur.fetchall()
     conn.close()

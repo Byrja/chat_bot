@@ -107,18 +107,42 @@ async def menu_action(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
         return
 
     if action == "pairs":
+        await query.edit_message_text(
+            "💬 Топ пар\nВыбери период:",
+            reply_markup=InlineKeyboardMarkup([
+                [InlineKeyboardButton("За всё время", callback_data=f"menu:pairs_all:{issuer_id}")],
+                [InlineKeyboardButton("За 7 дней", callback_data=f"menu:pairs_week:{issuer_id}")],
+                [InlineKeyboardButton("⬅️ В меню", callback_data=f"menu:home:{issuer_id}")],
+            ]),
+        )
+        return
+
+    if action in {"pairs_all", "pairs_week"}:
         conn = get_conn(s.sqlite_path)
         cur = conn.cursor()
-        cur.execute(
-            """
-            SELECT from_tg_user_id, to_tg_user_id, pair_count, last_reply_at
-            FROM reply_pairs
-            WHERE chat_id = ?
-            ORDER BY pair_count DESC, datetime(last_reply_at) DESC
-            LIMIT 10
-            """,
-            (s.main_chat_id,),
-        )
+        if action == "pairs_week":
+            cur.execute(
+                """
+                SELECT from_tg_user_id, to_tg_user_id, pair_count, last_reply_at
+                FROM reply_pairs
+                WHERE chat_id = ?
+                  AND datetime(last_reply_at) >= datetime('now', '-7 days')
+                ORDER BY pair_count DESC, datetime(last_reply_at) DESC
+                LIMIT 10
+                """,
+                (s.main_chat_id,),
+            )
+        else:
+            cur.execute(
+                """
+                SELECT from_tg_user_id, to_tg_user_id, pair_count, last_reply_at
+                FROM reply_pairs
+                WHERE chat_id = ?
+                ORDER BY pair_count DESC, datetime(last_reply_at) DESC
+                LIMIT 10
+                """,
+                (s.main_chat_id,),
+            )
         rows = cur.fetchall()
 
         if not rows:
@@ -142,7 +166,8 @@ async def menu_action(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
                     labels[uid] = f"@{uname}" if uname else (fname or str(uid))
             conn.close()
 
-            lines = ["💬 Топ пар (по reply)", "───────────────────"]
+            title = "💬 Топ пар (7 дней)" if action == "pairs_week" else "💬 Топ пар (всё время)"
+            lines = [title, "───────────────────"]
             for i, (fuid, tuid, cnt, last_at) in enumerate(rows, 1):
                 lines.append(f"{i}. {labels.get(int(fuid), fuid)} → {labels.get(int(tuid), tuid)} | {cnt} | {last_at or '—'}")
             text = "\n".join(lines)

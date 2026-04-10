@@ -15,7 +15,8 @@ async def show_top_pairs(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         return
 
     s = _settings(context)
-    rows = get_top_pairs(s.sqlite_path, update.effective_chat.id, limit=10)
+    since_days = 7 if context.args and context.args[0].lower() in {"7d", "week"} else None
+    rows = get_top_pairs(s.sqlite_path, update.effective_chat.id, limit=10, since_days=since_days)
     if not rows:
         text = "Пока нет данных по топ-парам (нужны reply-сообщения)."
     else:
@@ -40,7 +41,8 @@ async def show_top_pairs(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
                 labels[uid] = f"@{uname}" if uname else (fname or str(uid))
         conn.close()
 
-        lines = ["💬 Топ пар (по reply)", "───────────────────"]
+        title = "💬 Топ пар (7 дней)" if since_days else "💬 Топ пар (по reply)"
+        lines = [title, "───────────────────"]
         for i, (from_uid, to_uid, cnt, last_at) in enumerate(rows, 1):
             lines.append(f"{i}. {labels.get(int(from_uid), from_uid)} → {labels.get(int(to_uid), to_uid)} | {cnt} | {last_at or '—'}")
         text = "\n".join(lines)
