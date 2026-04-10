@@ -1,5 +1,5 @@
 from telegram import Update
-from telegram.ext import Application, CallbackQueryHandler, CommandHandler, ConversationHandler, MessageHandler, filters
+from telegram.ext import Application, CallbackQueryHandler, CommandHandler, ConversationHandler, MessageHandler, PicklePersistence, filters
 
 from bot.config import Settings
 from bot.handlers.alcohol_tmp import receive_alcohol_choice
@@ -50,7 +50,8 @@ def build_app(settings: Settings) -> Application:
     if not settings.telegram_bot_token:
         raise RuntimeError("TELEGRAM_BOT_TOKEN is not set")
 
-    app = Application.builder().token(settings.telegram_bot_token).build()
+    persistence = PicklePersistence(filepath="data/bot_state.pkl")
+    app = Application.builder().token(settings.telegram_bot_token).persistence(persistence).build()
     app.bot_data["settings"] = settings
 
     flow = ConversationHandler(

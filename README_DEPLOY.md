@@ -56,3 +56,4 @@ cd /srv/openclaw-bus/chat_bot
 ## Notes
 - Bot must be admin in main group for invite/mute/ban features.
 - `/activity` starts tracking from deployment moment.
+- Conversation state is persisted in `data/bot_state.pkl` across restarts.
