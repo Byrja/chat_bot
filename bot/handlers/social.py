@@ -15,7 +15,7 @@ from bot.services.rbac import has_permission
 
 
 def _settings(context: ContextTypes.DEFAULT_TYPE) -> Settings:
-    return context.application.bot_data["settings"]
+    return context.application.bot_data.get("settings") or context.application.settings
 
 
 def _label(db_path: str, chat_id: int, uid: int) -> str:

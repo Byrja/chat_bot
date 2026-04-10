@@ -6,7 +6,7 @@ from bot.repositories.quotes import add_quote, latest_quote, random_quote
 
 
 def _settings(context: ContextTypes.DEFAULT_TYPE) -> Settings:
-    return context.application.bot_data["settings"]
+    return context.application.bot_data.get("settings") or context.application.settings
 
 
 async def save_quote(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:

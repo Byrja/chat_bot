@@ -18,7 +18,7 @@ WAIT_NAME, WAIT_DISTRICT, WAIT_AGE, WAIT_HOBBY, WAIT_ALCOHOL, WAIT_AVAILABILITY,
 
 
 def _settings(context: ContextTypes.DEFAULT_TYPE) -> Settings:
-    return context.application.bot_data["settings"]
+    return context.application.bot_data.get("settings") or context.application.settings
 
 
 async def questionnaire_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:

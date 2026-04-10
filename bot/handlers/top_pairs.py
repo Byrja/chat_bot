@@ -6,7 +6,7 @@ from bot.repositories.pairs import get_top_pairs
 
 
 def _settings(context: ContextTypes.DEFAULT_TYPE) -> Settings:
-    return context.application.bot_data["settings"]
+    return context.application.bot_data.get("settings") or context.application.settings
 
 
 async def show_top_pairs(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:

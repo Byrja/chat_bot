@@ -8,7 +8,7 @@ from bot.services.rbac import has_permission
 
 
 def _settings(context: ContextTypes.DEFAULT_TYPE) -> Settings:
-    return context.application.bot_data["settings"]
+    return context.application.bot_data.get("settings") or context.application.settings
 
 
 def _can_activity(update: Update, context: ContextTypes.DEFAULT_TYPE) -> bool:

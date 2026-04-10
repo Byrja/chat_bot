@@ -11,7 +11,7 @@ from bot.services.rbac import effective_role, has_permission
 
 
 def _settings(context: ContextTypes.DEFAULT_TYPE) -> Settings:
-    return context.application.bot_data["settings"]
+    return context.application.bot_data.get("settings") or context.application.settings
 
 
 def _menu_kb(update: Update, context: ContextTypes.DEFAULT_TYPE, issuer_id: int) -> InlineKeyboardMarkup:

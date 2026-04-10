@@ -6,7 +6,7 @@ from bot.repositories.activity import get_top_week_activity
 
 
 def _settings(context: ContextTypes.DEFAULT_TYPE) -> Settings:
-    return context.application.bot_data["settings"]
+    return context.application.bot_data.get("settings") or context.application.settings
 
 
 async def show_top_week(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:

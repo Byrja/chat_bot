@@ -52,6 +52,7 @@ def build_app(settings: Settings) -> Application:
 
     persistence = PicklePersistence(filepath="data/bot_state.pkl")
     app = Application.builder().token(settings.telegram_bot_token).persistence(persistence).build()
+    app.settings = settings
     app.bot_data["settings"] = settings
 
     flow = ConversationHandler(
