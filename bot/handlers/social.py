@@ -86,10 +86,12 @@ async def friend_foe_top(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 
 def _fallback_bottle_task(actor: str, partner: str) -> str:
     tasks = [
-        f"{actor} говорит {partner} три честных комплимента.",
-        f"{actor} придумывает мини-челлендж на сутки для себя и {partner}.",
-        f"{actor} кидает трек для {partner} и пишет почему именно он.",
-        f"{actor} отправляет мем про вас двоих с подписью.",
+        f"{actor} записывает кружок на 10–15 секунд с позитивным пожеланием для {partner}.",
+        f"{actor} отправляет голосовое (до 20 секунд) и называет 3 причины респекта к {partner}.",
+        f"{actor} присылает фото предмета, который ассоциируется с {partner}, и коротко объясняет почему.",
+        f"{actor} пишет текстом мини-историю в 2–3 предложения, где {partner} спасает чат от скуки.",
+        f"{actor} пишет {partner} 3 честных комплимента без иронии.",
+        f"{actor} кидает трек для {partner} и одной фразой объясняет выбор.",
     ]
     import random
 
@@ -100,7 +102,9 @@ def _gen_bottle_task(actor: str, partner: str) -> str:
     if llm_enabled():
         prompt = (
             f"Придумай одно короткое веселое задание для игры в бутылочку. "
-            f"Участники: {actor} и {partner}. Формат 1-2 предложения, без токсичности и 18+"
+            f"Участники: {actor} и {partner}. "
+            "Задание должно быть выполнимо прямо в чате (текст, голосовое, кружок или фото). "
+            "Формат 1-2 предложения, без токсичности, без 18+, без унижений."
         )
         txt = complete_text(prompt, max_tokens=80, temperature=0.9)
         if txt:
@@ -138,10 +142,13 @@ async def bottle_game(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
         [[InlineKeyboardButton("🎮 Играть", callback_data=f"bottlejoin:{update.effective_chat.id}:{actor_uid}")]]
     )
     text = f"🍾 Бутылочка запущена {actor}.\nКто хочет быть вторым игроком — жми «Играть»."
+    # Send as a fresh message so any participant can interact naturally.
+    await msg.reply_text(text, reply_markup=kb)
     if update.callback_query:
-        await update.callback_query.edit_message_text(text, reply_markup=kb)
-    else:
-        await msg.reply_text(text, reply_markup=kb)
+        try:
+            await update.callback_query.answer("Лобби бутылочки отправлено в чат", show_alert=False)
+        except Exception:
+            pass
 
 
 async def bottle_join_action(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
