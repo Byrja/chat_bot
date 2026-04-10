@@ -19,9 +19,30 @@ async def show_top_pairs(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     if not rows:
         text = "Пока нет данных по топ-парам (нужны reply-сообщения)."
     else:
+        from bot.db import get_conn
+
+        uids = set()
+        for fr, to, _, _ in rows:
+            uids.add(int(fr))
+            uids.add(int(to))
+
+        labels = {uid: str(uid) for uid in uids}
+        conn = get_conn(s.sqlite_path)
+        cur = conn.cursor()
+        for uid in uids:
+            cur.execute(
+                "SELECT COALESCE(username,''), COALESCE(first_name,'') FROM member_activity WHERE chat_id = ? AND tg_user_id = ? ORDER BY updated_at DESC LIMIT 1",
+                (update.effective_chat.id, uid),
+            )
+            r = cur.fetchone()
+            if r:
+                uname, fname = r
+                labels[uid] = f"@{uname}" if uname else (fname or str(uid))
+        conn.close()
+
         lines = ["💬 Топ пар (по reply)", "───────────────────"]
         for i, (from_uid, to_uid, cnt, last_at) in enumerate(rows, 1):
-            lines.append(f"{i}. {from_uid} → {to_uid} | {cnt} | {last_at or '—'}")
+            lines.append(f"{i}. {labels.get(int(from_uid), from_uid)} → {labels.get(int(to_uid), to_uid)} | {cnt} | {last_at or '—'}")
         text = "\n".join(lines)
 
     if update.callback_query:

@@ -120,14 +120,31 @@ async def menu_action(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
             (s.main_chat_id,),
         )
         rows = cur.fetchall()
-        conn.close()
 
         if not rows:
+            conn.close()
             text = "Пока нет данных по топ-парам (нужны reply-сообщения)."
         else:
+            uids = set()
+            for fr, to, _, _ in rows:
+                uids.add(int(fr))
+                uids.add(int(to))
+
+            labels = {uid: str(uid) for uid in uids}
+            for uid in uids:
+                cur.execute(
+                    "SELECT COALESCE(username,''), COALESCE(first_name,'') FROM member_activity WHERE chat_id = ? AND tg_user_id = ? ORDER BY updated_at DESC LIMIT 1",
+                    (s.main_chat_id, uid),
+                )
+                r = cur.fetchone()
+                if r:
+                    uname, fname = r
+                    labels[uid] = f"@{uname}" if uname else (fname or str(uid))
+            conn.close()
+
             lines = ["💬 Топ пар (по reply)", "───────────────────"]
             for i, (fuid, tuid, cnt, last_at) in enumerate(rows, 1):
-                lines.append(f"{i}. {fuid} → {tuid} | {cnt} | {last_at or '—'}")
+                lines.append(f"{i}. {labels.get(int(fuid), fuid)} → {labels.get(int(tuid), tuid)} | {cnt} | {last_at or '—'}")
             text = "\n".join(lines)
 
         await query.edit_message_text(text, reply_markup=_back_kb(issuer_id))
