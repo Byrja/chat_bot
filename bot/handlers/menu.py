@@ -13,41 +13,61 @@ def _settings(context: ContextTypes.DEFAULT_TYPE) -> Settings:
     return context.application.bot_data["settings"]
 
 
-def _menu_kb(update: Update, context: ContextTypes.DEFAULT_TYPE) -> InlineKeyboardMarkup:
+def _menu_kb(update: Update, context: ContextTypes.DEFAULT_TYPE, issuer_id: int) -> InlineKeyboardMarkup:
     s = _settings(context)
-    uid = update.effective_user.id if update.effective_user else 0
 
     rows = [
-        [InlineKeyboardButton("📊 Статистика", callback_data="menu:stats"), InlineKeyboardButton("👥 Актив", callback_data="menu:activity")],
-        [InlineKeyboardButton("🎭 Развлечения", callback_data="menu:fun")],
+        [
+            InlineKeyboardButton("📊 Статистика", callback_data=f"menu:stats:{issuer_id}"),
+            InlineKeyboardButton("👥 Актив", callback_data=f"menu:activity:{issuer_id}"),
+        ],
+        [InlineKeyboardButton("🎭 Развлечения", callback_data=f"menu:fun:{issuer_id}")],
     ]
 
-    if has_permission(s, s.sqlite_path, uid, "warn"):
-        rows.append([InlineKeyboardButton("🛡 Модерация", callback_data="menu:mod")])
+    if has_permission(s, s.sqlite_path, issuer_id, "warn"):
+        rows.append([InlineKeyboardButton("🛡 Модерация", callback_data=f"menu:mod:{issuer_id}")])
 
     return InlineKeyboardMarkup(rows)
 
 
+def _back_kb(issuer_id: int) -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup([[InlineKeyboardButton("⬅️ В меню", callback_data=f"menu:home:{issuer_id}")]])
+
+
 async def show_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     msg = update.message or (update.callback_query.message if update.callback_query else None)
-    if not msg:
+    if not msg or not update.effective_user:
         return
+
+    issuer_id = update.effective_user.id
     text = "MD4 меню\nВыбери действие:"
     if update.callback_query:
-        await update.callback_query.edit_message_text(text, reply_markup=_menu_kb(update, context))
+        await update.callback_query.edit_message_text(text, reply_markup=_menu_kb(update, context, issuer_id))
     else:
-        await msg.reply_text(text, reply_markup=_menu_kb(update, context))
+        await msg.reply_text(text, reply_markup=_menu_kb(update, context, issuer_id))
 
 
 async def menu_action(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     query = update.callback_query
-    if not query or not update.effective_user:
+    if not query or not update.effective_user or not update.effective_chat:
         return
     await query.answer()
 
+    parts = (query.data or "").split(":")
+    if len(parts) != 3:
+        return
+    action = parts[1]
+    try:
+        issuer_id = int(parts[2])
+    except Exception:
+        return
+
+    if update.effective_user.id != issuer_id:
+        await query.answer("Это меню не для тебя", show_alert=True)
+        return
+
     s = _settings(context)
     uid = update.effective_user.id
-    action = (query.data or "menu:").split(":", 1)[1]
 
     if action == "home":
         await show_menu(update, context)
@@ -60,7 +80,10 @@ async def menu_action(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
         apps = int(cur.fetchone()[0] or 0)
         cur.execute("SELECT COUNT(*) FROM applications WHERE tg_user_id = ? AND status='approved'", (uid,))
         approved = int(cur.fetchone()[0] or 0)
-        cur.execute("SELECT msg_count, last_message_at FROM member_activity WHERE chat_id = ? AND tg_user_id = ?", (s.main_chat_id, uid))
+        cur.execute(
+            "SELECT msg_count, last_message_at FROM member_activity WHERE chat_id = ? AND tg_user_id = ?",
+            (s.main_chat_id, uid),
+        )
         r = cur.fetchone()
         conn.close()
         msg_count = int(r[0]) if r else 0
@@ -75,7 +98,7 @@ async def menu_action(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
             f"Одобрено: {approved}\n"
             f"Сообщений в чате: {msg_count}\n"
             f"Последнее сообщение: {last_at or '—'}",
-            reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("⬅️ В меню", callback_data="menu:home")]]),
+            reply_markup=_back_kb(issuer_id),
         )
         return
 
@@ -94,6 +117,7 @@ async def menu_action(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
         )
         rows = cur.fetchall()
         conn.close()
+
         if not rows:
             text = "Пока нет данных по активности."
         else:
@@ -102,19 +126,17 @@ async def menu_action(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
                 label = f"@{username}" if username else (first_name or "user")
                 lines.append(f"{i}. {label} — {cnt} | {last_at or '—'}")
             text = "\n".join(lines)
-        await query.edit_message_text(
-            text,
-            reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("⬅️ В меню", callback_data="menu:home")]]),
-        )
+
+        await query.edit_message_text(text, reply_markup=_back_kb(issuer_id))
         return
 
     if action == "fun":
         await query.edit_message_text(
             "🎭 Развлечения\nВыбери действие:",
             reply_markup=InlineKeyboardMarkup([
-                [InlineKeyboardButton("📣 Хипиш", callback_data="menu:fun_hipish")],
-                [InlineKeyboardButton("🔇 Самомут 15 мин", callback_data="menu:fun_muteme15")],
-                [InlineKeyboardButton("⬅️ В меню", callback_data="menu:home")],
+                [InlineKeyboardButton("📣 Хипиш", callback_data=f"menu:fun_hipish:{issuer_id}")],
+                [InlineKeyboardButton("🔇 Самомут 15 мин", callback_data=f"menu:fun_muteme15:{issuer_id}")],
+                [InlineKeyboardButton("⬅️ В меню", callback_data=f"menu:home:{issuer_id}")],
             ]),
         )
         return
@@ -128,7 +150,7 @@ async def menu_action(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
             left_min = int((cooldown - (now - last)) // 60) + 1
             await query.edit_message_text(
                 f"/hipish можно вызывать не чаще 1 раза в час. Осталось ~{left_min} мин.",
-                reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("⬅️ В меню", callback_data="menu:home")]]),
+                reply_markup=_back_kb(issuer_id),
             )
             return
 
@@ -155,10 +177,7 @@ async def menu_action(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
             if missing:
                 text += f"\n(и ещё {missing} админ(ов) без @username)"
 
-        await query.edit_message_text(
-            text,
-            reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("⬅️ В меню", callback_data="menu:home")]]),
-        )
+        await query.edit_message_text(text, reply_markup=_back_kb(issuer_id))
         context.application.bot_data[key] = now
         return
 
@@ -170,23 +189,23 @@ async def menu_action(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
                 permissions=ChatPermissions(can_send_messages=False),
                 until_date=datetime.utcnow().timestamp() + 15 * 60,
             )
-            await query.message.reply_text("Самомут на 15 минут активирован")
+            await query.edit_message_text("Самомут на 15 минут активирован", reply_markup=_back_kb(issuer_id))
         except Exception as e:
-            await query.message.reply_text(f"Не удалось выдать самомут: {e}")
-        await show_menu(update, context)
+            await query.edit_message_text(f"Не удалось выдать самомут: {e}", reply_markup=_back_kb(issuer_id))
         return
 
     if action == "mod":
         if not has_permission(s, s.sqlite_path, uid, "warn"):
-            await query.edit_message_text("Недостаточно прав", reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("⬅️ В меню", callback_data="menu:home")]]))
+            await query.edit_message_text("Недостаточно прав", reply_markup=_back_kb(issuer_id))
             return
         await query.edit_message_text(
             "🛡 Модерация\n"
             "Команды (reply на пользователя):\n"
+            "/mod — кнопочная панель\n"
             "/warn причина\n"
             "/mute 30 причина\n"
             "/ban причина",
-            reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("⬅️ В меню", callback_data="menu:home")]]),
+            reply_markup=_back_kb(issuer_id),
         )
         return
 
