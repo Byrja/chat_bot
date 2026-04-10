@@ -3,12 +3,6 @@ from datetime import datetime, timedelta, timezone
 from telegram import ChatPermissions, Update
 from telegram.ext import ContextTypes
 
-from bot.config import Settings
-
-
-def _settings(context: ContextTypes.DEFAULT_TYPE) -> Settings:
-    return context.application.bot_data["settings"]
-
 
 def _parse_minutes(raw: str | None) -> int:
     if not raw:
@@ -47,21 +41,27 @@ async def hipish(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if not update.message or not update.effective_chat:
         return
 
-    s = _settings(context)
-    ids: set[int] = set(s.admin_user_ids)
-
+    usernames: list[str] = []
+    missing = 0
     try:
         admins = await context.bot.get_chat_administrators(update.effective_chat.id)
         for a in admins:
             u = a.user
-            if u and not u.is_bot:
-                ids.add(u.id)
+            if not u or u.is_bot:
+                continue
+            if u.username:
+                usernames.append(f"@{u.username}")
+            else:
+                missing += 1
     except Exception:
         pass
 
-    if not ids:
-        await update.message.reply_text("Админы не найдены")
+    usernames = sorted(set(usernames))
+    if not usernames:
+        await update.message.reply_text("Не нашёл админов с @username")
         return
 
-    mentions = [f'<a href="tg://user?id={uid}">admin:{uid}</a>' for uid in sorted(ids)]
-    await update.message.reply_text("Хипиш! " + " ".join(mentions), parse_mode="HTML")
+    text = "Хипиш! " + " ".join(usernames)
+    if missing:
+        text += f"\n(и ещё {missing} админ(ов) без @username)"
+    await update.message.reply_text(text)
