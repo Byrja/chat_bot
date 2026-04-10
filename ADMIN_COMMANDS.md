@@ -20,6 +20,10 @@
 - Bans user from current chat.
 - Adds ban record to DB + audit event.
 
+### `/admin_stats`
+- Shows application funnel and sanctions counters.
+- Admin-only.
+
 ## Notes
 - Commands available only for IDs listed in `ADMIN_USER_IDS`.
 - Bot must have sufficient admin rights in target chat.

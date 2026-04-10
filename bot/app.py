@@ -26,6 +26,7 @@ from bot.handlers.questionnaire import (
     receive_reject_reason,
 )
 from bot.handlers.admin_sanctions import ban_user, mute_user, warn_user
+from bot.handlers.admin_stats import admin_stats
 from bot.handlers.start import health
 
 
@@ -66,6 +67,7 @@ def build_app(settings: Settings) -> Application:
     app.add_handler(CommandHandler("warn", warn_user))
     app.add_handler(CommandHandler("mute", mute_user))
     app.add_handler(CommandHandler("ban", ban_user))
+    app.add_handler(CommandHandler("admin_stats", admin_stats))
     app.add_handler(CommandHandler("health", health))
     return app
 
