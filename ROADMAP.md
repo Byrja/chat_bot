@@ -26,11 +26,11 @@
 - [ ] Action audit log
 
 ## Phase 3 — Product hardening
-- [ ] Anti-race protections for approve/reject buttons
-- [ ] Idempotent moderation actions
-- [ ] Metrics dashboard (/admin_stats)
-- [ ] Error monitoring + retries
-- [ ] Backup/restore DB script
+- [x] Anti-race protections for approve/reject buttons
+- [x] Idempotent moderation actions
+- [x] Metrics dashboard (/admin_stats)
+- [x] Error monitoring + retries
+- [x] Backup/restore DB script
 
 ## Phase 4 — Beta and launch
 - [ ] Closed beta with real users
