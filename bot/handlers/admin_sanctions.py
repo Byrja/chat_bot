@@ -29,7 +29,7 @@ async def mute_user(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         return
 
     if not context.args:
-        await update.message.reply_text("Формат: /mute 30m причина (или 2h / 1d)")
+        await update.message.reply_text("Формат: /mute 30 причина (минуты, можно также 30m/2h/1d)")
         return
 
     target = update.message.reply_to_message.from_user
@@ -39,7 +39,7 @@ async def mute_user(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
     until_dt = parse_mute_duration(context.args[0])
     if until_dt is None:
-        await update.message.reply_text("Некорректная длительность. Используй: 30m, 2h, 1d")
+        await update.message.reply_text("Некорректная длительность. Используй: 30 (мин), 30m, 2h, 1d")
         return
     reason = " ".join(context.args[1:]).strip() or None
 

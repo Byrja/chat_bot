@@ -205,19 +205,26 @@ async def preview_action(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
                 f"Алкоголь: {answers.get('alcohol', '—')}\n"
                 f"Свободное время: {answers.get('availability', '—')}"
             )
-            await context.bot.send_message(
-                chat_id=s.admin_chat_id,
-                text=text,
-                reply_markup=InlineKeyboardMarkup([
-                    [
-                        InlineKeyboardButton("✅ Одобрить", callback_data=f"mod:approve:{app_id}"),
-                        InlineKeyboardButton("❌ Отказать", callback_data=f"mod:reject:{app_id}"),
-                    ]
-                ]),
-            )
             photo_id = answers.get("photo_file_id")
+            markup = InlineKeyboardMarkup([
+                [
+                    InlineKeyboardButton("✅ Одобрить", callback_data=f"mod:approve:{app_id}"),
+                    InlineKeyboardButton("❌ Отказать", callback_data=f"mod:reject:{app_id}"),
+                ]
+            ])
             if photo_id:
-                await context.bot.send_photo(chat_id=s.admin_chat_id, photo=photo_id, caption=f"Фото анкеты #{app_id}")
+                await context.bot.send_photo(
+                    chat_id=s.admin_chat_id,
+                    photo=photo_id,
+                    caption=text,
+                    reply_markup=markup,
+                )
+            else:
+                await context.bot.send_message(
+                    chat_id=s.admin_chat_id,
+                    text=text,
+                    reply_markup=markup,
+                )
 
         await query.edit_message_text(
             "Анкета отправлена на модерацию ✅\n"

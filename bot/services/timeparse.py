@@ -5,6 +5,8 @@ def parse_mute_duration(raw: str) -> datetime | None:
     s = (raw or "").strip().lower()
     if not s:
         return None
+    if s.isdigit():
+        return datetime.now(timezone.utc) + timedelta(minutes=int(s))
     if s.endswith("m") and s[:-1].isdigit():
         return datetime.now(timezone.utc) + timedelta(minutes=int(s[:-1]))
     if s.endswith("h") and s[:-1].isdigit():
