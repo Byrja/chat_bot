@@ -45,6 +45,14 @@ git checkout <previous_commit>
 systemctl --user restart md4-bot.service
 ```
 
+## 6) DB backup/restore
+See `BACKUP_RUNBOOK.md`.
+Quick backup:
+```bash
+cd /srv/openclaw-bus/chat_bot
+./scripts/backup_db.sh ./data/md4.db ./backups
+```
+
 ## Notes
 - Bot must be admin in main group for invite/mute/ban features.
 - `/activity` starts tracking from deployment moment.
