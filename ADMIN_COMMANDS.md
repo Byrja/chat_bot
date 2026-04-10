@@ -29,6 +29,11 @@
 - Use as reply to a user's message.
 - Sets participant role.
 
+### `/mod`
+- Admin-only.
+- Use as reply to a user's message.
+- Opens quick inline moderation panel (warn / mute30 / ban).
+
 ### `/whois`
 - If used in reply: shows target user's role.
 - Without reply: shows your role.
