@@ -241,9 +241,18 @@ async def menu_action(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
 
     if action == "fun":
         await query.edit_message_text(
-            "🎭 Развлечения\nПока доступен раздел общения и активности.",
-            reply_markup=_back_kb(issuer_id),
+            "🎭 Развлечения\nВыбери действие:",
+            reply_markup=InlineKeyboardMarkup([
+                [InlineKeyboardButton("🔮 Гороскоп", callback_data=f"menu:fun_horoscope:{issuer_id}")],
+                [InlineKeyboardButton("⬅️ В меню", callback_data=f"menu:home:{issuer_id}")],
+            ]),
         )
+        return
+
+    if action == "fun_horoscope":
+        from bot.handlers.horoscope import horoscope
+
+        await horoscope(update, context)
         return
 
     if action == "fun_hipish":

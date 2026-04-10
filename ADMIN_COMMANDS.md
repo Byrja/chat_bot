@@ -50,6 +50,11 @@
 - Self-mutes sender in current chat. Default: 30 minutes.
 - Also available via `⚙️ Настройки` in inline menu.
 
+### `/horoscope`
+- Personalized short horoscope by zodiac sign.
+- Requires birthdate in settings.
+- Uses OpenRouter model with local fallback.
+
 ### `/hipish`
 - Available for all participants.
 - Mentions configured admins.
