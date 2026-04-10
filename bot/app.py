@@ -43,6 +43,7 @@ from bot.handlers.start import health
 from bot.handlers.top_pairs import show_top_pairs
 from bot.handlers.top_week import show_top_week
 from bot.handlers.birthday_reminders import send_birthday_reminders
+from bot.handlers.social import bottle_game, bottle_result_action, friend_foe_stats, friend_foe_top
 
 
 def build_app(settings: Settings) -> Application:
@@ -98,12 +99,16 @@ def build_app(settings: Settings) -> Application:
     app.add_handler(CommandHandler("minus", karma_minus))
     app.add_handler(CommandHandler("karma", karma_me))
     app.add_handler(CommandHandler("karma_top", karma_top_cmd))
+    app.add_handler(CommandHandler("friend_foe_stats", friend_foe_stats))
+    app.add_handler(CommandHandler("friend_foe_top", friend_foe_top))
+    app.add_handler(CommandHandler("bottle", bottle_game))
     app.add_handler(CommandHandler("menu", show_menu))
     app.add_handler(CommandHandler("horoscope", horoscope))
     app.add_handler(CommandHandler("mod", mod_panel))
     app.add_handler(CallbackQueryHandler(menu_action, pattern=r"^menu:(home|stats|activity|activity_all|activity_day|activity_week|activity_month|pairs|pairs_all|pairs_week|drama_days|fun|fun_horoscope|fun_quote_random|fun_quote_latest|fun_hipish|mod|settings|settings_muteme15|settings_bday|settings_bday_clear|settings_editform|settings_kick_confirm|settings_kick_do):[0-9]+$"))
     app.add_handler(CallbackQueryHandler(mod_quick_ask_reason, pattern=r"^modquickask:(warn|mute30|ban):[0-9]+:[0-9]+$"))
     app.add_handler(CallbackQueryHandler(mod_quick_action, pattern=r"^modquick:(warn|mute30|ban):[0-9]+:[0-9]+:(spam|abuse|offtopic|other)$"))
+    app.add_handler(CallbackQueryHandler(bottle_result_action, pattern=r"^bottle:(done|fail):[0-9]+:[0-9]+$"))
     app.add_handler(MessageHandler(filters.Regex(r"(?i)^\s*анкета\s+@?[a-zA-Z0-9_]{3,}\s*$"), questionnaire_lookup))
     app.add_handler(MessageHandler(filters.Regex(r"^\d{1,2}\.\d{1,2}$"), capture_birthdate_input))
     app.add_handler(CommandHandler("mute_me", mute_me))

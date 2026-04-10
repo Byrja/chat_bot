@@ -165,6 +165,17 @@ CREATE TABLE IF NOT EXISTS karma_events (
     reason TEXT,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
+
+CREATE TABLE IF NOT EXISTS bottle_games (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    chat_id INTEGER NOT NULL,
+    actor_tg_user_id INTEGER NOT NULL,
+    partner_tg_user_id INTEGER NOT NULL,
+    status TEXT NOT NULL DEFAULT 'pending' CHECK(status IN ('pending','done','fail')),
+    created_by_tg_user_id INTEGER,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    resolved_at DATETIME
+);
 """
 
 
