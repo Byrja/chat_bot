@@ -33,6 +33,9 @@
 - If used in reply: shows target user's role.
 - Without reply: shows your role.
 
+### `/menu`
+- Opens inline navigation menu with role-based sections.
+
 ### `/mute_me [minutes]`
 - Available for all participants.
 - Self-mutes sender in current chat. Default: 30 minutes.
