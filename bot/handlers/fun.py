@@ -1,4 +1,5 @@
 from datetime import datetime, timedelta, timezone
+import time
 
 from telegram import ChatPermissions, Update
 from telegram.ext import ContextTypes
@@ -41,6 +42,15 @@ async def hipish(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if not update.message or not update.effective_chat:
         return
 
+    key = f"hipish_last_ts:{update.effective_chat.id}"
+    now = time.time()
+    last = float(context.application.bot_data.get(key, 0.0) or 0.0)
+    cooldown = 3600
+    if now - last < cooldown:
+        left_min = int((cooldown - (now - last)) // 60) + 1
+        await update.message.reply_text(f"/hipish можно вызывать не чаще 1 раза в час. Осталось ~{left_min} мин.")
+        return
+
     usernames: list[str] = []
     missing = 0
     try:
@@ -65,3 +75,4 @@ async def hipish(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if missing:
         text += f"\n(и ещё {missing} админ(ов) без @username)"
     await update.message.reply_text(text)
+    context.application.bot_data[key] = now
