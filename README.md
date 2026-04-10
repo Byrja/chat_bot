@@ -22,4 +22,4 @@ Telegram onboarding + moderation bot.
 - pytest
 
 ## Status
-Planning + architecture setup in progress.
+Phase 1 in progress: questionnaire step 1-4 implemented (draft persistence).
