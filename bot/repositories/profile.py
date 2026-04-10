@@ -17,6 +17,14 @@ def set_birthdate(db_path: str, tg_user_id: int, day: int, month: int) -> None:
     conn.close()
 
 
+def clear_birthdate(db_path: str, tg_user_id: int) -> None:
+    conn = get_conn(db_path)
+    cur = conn.cursor()
+    cur.execute("DELETE FROM member_profiles WHERE tg_user_id = ?", (tg_user_id,))
+    conn.commit()
+    conn.close()
+
+
 def get_birthdate(db_path: str, tg_user_id: int) -> tuple[int, int] | None:
     conn = get_conn(db_path)
     cur = conn.cursor()

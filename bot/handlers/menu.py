@@ -6,7 +6,7 @@ from telegram.ext import ContextTypes
 
 from bot.config import Settings
 from bot.db import get_conn
-from bot.repositories.profile import get_birthdate, set_birthdate
+from bot.repositories.profile import clear_birthdate, get_birthdate, set_birthdate
 from bot.services.rbac import effective_role, has_permission
 
 
@@ -318,6 +318,7 @@ async def menu_action(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
             reply_markup=InlineKeyboardMarkup([
                 [InlineKeyboardButton("🔇 Самомут 15 мин", callback_data=f"menu:settings_muteme15:{issuer_id}")],
                 [InlineKeyboardButton("🎂 Указать дату рождения", callback_data=f"menu:settings_bday:{issuer_id}")],
+                [InlineKeyboardButton("🗑 Удалить дату рождения", callback_data=f"menu:settings_bday_clear:{issuer_id}")],
                 [InlineKeyboardButton("📝 Редактировать анкету", callback_data=f"menu:settings_editform:{issuer_id}")],
                 [InlineKeyboardButton("🚪 Kick me", callback_data=f"menu:settings_kick_confirm:{issuer_id}")],
                 [InlineKeyboardButton("⬅️ В меню", callback_data=f"menu:home:{issuer_id}")],
@@ -342,6 +343,14 @@ async def menu_action(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
         context.user_data["await_birthdate_issuer"] = issuer_id
         await query.edit_message_text(
             "Введи дату рождения в формате ДД.ММ (например 05.11)",
+            reply_markup=_back_kb(issuer_id),
+        )
+        return
+
+    if action == "settings_bday_clear":
+        clear_birthdate(s.sqlite_path, uid)
+        await query.edit_message_text(
+            "Дата рождения удалена.",
             reply_markup=_back_kb(issuer_id),
         )
         return
