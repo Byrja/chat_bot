@@ -76,6 +76,19 @@ CREATE TABLE IF NOT EXISTS member_activity (
 CREATE INDEX IF NOT EXISTS idx_member_activity_chat_msgcount
 ON member_activity(chat_id, msg_count DESC);
 
+CREATE TABLE IF NOT EXISTS member_messages (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    chat_id INTEGER NOT NULL,
+    tg_user_id INTEGER NOT NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_member_messages_chat_created
+ON member_messages(chat_id, created_at DESC);
+
+CREATE INDEX IF NOT EXISTS idx_member_messages_chat_user_created
+ON member_messages(chat_id, tg_user_id, created_at DESC);
+
 CREATE TABLE IF NOT EXISTS reply_pairs (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     chat_id INTEGER NOT NULL,
