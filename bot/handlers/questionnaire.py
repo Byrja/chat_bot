@@ -31,7 +31,7 @@ async def questionnaire_start(update: Update, context: ContextTypes.DEFAULT_TYPE
     app_id = get_or_create_draft_application(s.sqlite_path, user.id)
     context.user_data["application_id"] = app_id
 
-    await update.message.reply_text("Анкета MD4\nВопрос 1/8: Как тебя зовут?")
+    await update.message.reply_text("Анкета МДЧ\nВопрос 1/8: Как тебя зовут?")
     return WAIT_NAME
 
 
@@ -194,7 +194,7 @@ async def preview_action(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         if packet:
             owner_id, answers = packet
             text = (
-                "🆕 Новая анкета MD4\n"
+                "🆕 Новая анкета МДЧ\n"
                 "───────────────────\n"
                 f"Application ID: {app_id}\n"
                 f"User: {owner_id} ({answers.get('tg_handle', '—')})\n"
@@ -275,7 +275,7 @@ async def moderation_action(update: Update, context: ContextTypes.DEFAULT_TYPE) 
                     member_limit=1,
                     expire_date=datetime.now(timezone.utc) + timedelta(hours=24),
                     creates_join_request=False,
-                    name=f"md4-{app_id}",
+                    name=f"mdch-{app_id}",
                 )
                 await context.bot.send_message(
                     chat_id=owner_id,

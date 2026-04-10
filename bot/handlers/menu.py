@@ -44,7 +44,7 @@ async def show_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         return
 
     issuer_id = update.effective_user.id
-    text = "MD4 меню\nВыбери действие:"
+    text = "МДЧ меню\nВыбери действие:"
     if update.callback_query:
         await update.callback_query.edit_message_text(text, reply_markup=_menu_kb(update, context, issuer_id))
     else:

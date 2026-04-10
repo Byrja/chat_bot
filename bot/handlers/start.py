@@ -6,7 +6,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if not update.message:
         return
     await update.message.reply_text(
-        "MD4 online ✅\n"
+        "МДЧ online ✅\n"
         "Бот готов к запуску анкеты."
     )
 
