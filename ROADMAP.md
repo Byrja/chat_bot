@@ -8,16 +8,16 @@
 - [ ] Test plan + release gates
 
 ## Phase 1 — MVP Core
-- [ ] Questionnaire state machine
-- [ ] Save draft and final application in DB
-- [ ] Preview + edit before submit
-- [ ] Send application to admin chat
-- [ ] Admin approve/reject with inline actions
-- [ ] Reject reason support (optional)
-- [ ] One-time invite generation (24h, 1 user)
-- [ ] User notifications for approve/reject
-- [ ] Reapply after reject
-- [ ] Daily user limit (2 applications/day)
+- [x] Questionnaire state machine
+- [x] Save draft and final application in DB
+- [x] Preview + edit before submit
+- [x] Send application to admin chat
+- [x] Admin approve/reject with inline actions
+- [x] Reject reason support (optional)
+- [x] One-time invite generation (24h, 1 user)
+- [x] User notifications for approve/reject
+- [x] Reapply after reject
+- [x] Daily user limit (2 applications/day)
 
 ## Phase 2 — Admin moderation tools
 - [ ] Warn command
