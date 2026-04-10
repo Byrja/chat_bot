@@ -37,6 +37,23 @@ def get_or_create_draft_application(db_path: str, tg_user_id: int) -> int:
     return app_id
 
 
+def submit_application(db_path: str, application_id: int) -> bool:
+    conn = get_conn(db_path)
+    cur = conn.cursor()
+    cur.execute(
+        """
+        UPDATE applications
+        SET status='submitted', submitted_at=CURRENT_TIMESTAMP, updated_at=CURRENT_TIMESTAMP
+        WHERE id = ? AND status = 'draft'
+        """,
+        (application_id,),
+    )
+    changed = cur.rowcount > 0
+    conn.commit()
+    conn.close()
+    return changed
+
+
 def get_answers_map(db_path: str, application_id: int) -> dict[str, str]:
     conn = get_conn(db_path)
     cur = conn.cursor()

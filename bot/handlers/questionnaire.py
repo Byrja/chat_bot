@@ -6,11 +6,12 @@ from bot.repositories.applications import (
     get_answers_map,
     get_or_create_draft_application,
     save_answer,
+    submit_application,
     upsert_user,
 )
 from bot.services.validation import validate_age
 
-WAIT_NAME, WAIT_DISTRICT, WAIT_AGE, WAIT_HOBBY, WAIT_ALCOHOL, WAIT_AVAILABILITY, WAIT_PHOTO = range(7)
+WAIT_NAME, WAIT_DISTRICT, WAIT_AGE, WAIT_HOBBY, WAIT_ALCOHOL, WAIT_AVAILABILITY, WAIT_PHOTO, WAIT_PREVIEW = range(8)
 
 
 def _settings(context: ContextTypes.DEFAULT_TYPE) -> Settings:
@@ -154,6 +155,39 @@ async def receive_photo(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
             [InlineKeyboardButton("✅ Отправить", callback_data="app:submit")],
         ]),
     )
+    return WAIT_PREVIEW
+
+
+async def preview_action(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    query = update.callback_query
+    if not query:
+        return ConversationHandler.END
+    await query.answer()
+
+    data = query.data or ""
+    if data == "app:edit":
+        await query.edit_message_text("Ок, давай обновим анкету с начала ✏️")
+        if query.message:
+            await query.message.reply_text("Вопрос 1/8: Как тебя зовут?")
+        return WAIT_NAME
+
+    if data == "app:submit":
+        app_id = int(context.user_data.get("application_id", 0) or 0)
+        if not app_id:
+            await query.edit_message_text("Черновик не найден. Начни заново: /start")
+            return ConversationHandler.END
+        s = _settings(context)
+        ok = submit_application(s.sqlite_path, app_id)
+        if not ok:
+            await query.edit_message_text("Заявка уже отправлена или недоступна.")
+            return ConversationHandler.END
+
+        await query.edit_message_text(
+            "Анкета отправлена на модерацию ✅\n"
+            "После рассказа о себе, я добавлю тебя к ребятам 😊 Приятного времяпрепровождения ❤️"
+        )
+        return ConversationHandler.END
+
     return ConversationHandler.END
 
 
