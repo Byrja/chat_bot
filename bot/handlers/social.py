@@ -8,9 +8,9 @@ from bot.repositories.social import (
     create_bottle_game,
     get_friend_foe_stats,
     get_friend_foe_top,
-    pick_bottle_pair,
     resolve_bottle_game,
 )
+from bot.services.llm_client import complete_text, llm_enabled
 from bot.services.rbac import has_permission
 
 
@@ -84,6 +84,30 @@ async def friend_foe_top(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         await msg.reply_text(text)
 
 
+def _fallback_bottle_task(actor: str, partner: str) -> str:
+    tasks = [
+        f"{actor} говорит {partner} три честных комплимента.",
+        f"{actor} придумывает мини-челлендж на сутки для себя и {partner}.",
+        f"{actor} кидает трек для {partner} и пишет почему именно он.",
+        f"{actor} отправляет мем про вас двоих с подписью.",
+    ]
+    import random
+
+    return random.choice(tasks)
+
+
+def _gen_bottle_task(actor: str, partner: str) -> str:
+    if llm_enabled():
+        prompt = (
+            f"Придумай одно короткое веселое задание для игры в бутылочку. "
+            f"Участники: {actor} и {partner}. Формат 1-2 предложения, без токсичности и 18+"
+        )
+        txt = complete_text(prompt, max_tokens=80, temperature=0.9)
+        if txt:
+            return txt
+    return _fallback_bottle_task(actor, partner)
+
+
 async def bottle_game(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     msg = update.message or (update.callback_query.message if update.callback_query else None)
     if not msg or not update.effective_chat or not update.effective_user:
@@ -102,34 +126,62 @@ async def bottle_game(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
         else:
             await msg.reply_text(text)
         return
-    pair = pick_bottle_pair(s.sqlite_path, update.effective_chat.id)
-    if not pair:
-        if update.callback_query:
-            await update.callback_query.edit_message_text("Нужно хотя бы 2 активных участника для бутылочки")
-        else:
-            await msg.reply_text("Нужно хотя бы 2 активных участника для бутылочки")
+
+    actor_uid = update.effective_user.id
+    actor = _label(s.sqlite_path, update.effective_chat.id, actor_uid)
+
+    lobby_key = f"bottle_lobby:{update.effective_chat.id}"
+    context.application.bot_data[lobby_key] = {"actor_uid": actor_uid, "started_at": now}
+    context.application.bot_data[key] = now
+
+    kb = InlineKeyboardMarkup(
+        [[InlineKeyboardButton("🎮 Играть", callback_data=f"bottlejoin:{update.effective_chat.id}:{actor_uid}")]]
+    )
+    text = f"🍾 Бутылочка запущена {actor}.\nКто хочет быть вторым игроком — жми «Играть»."
+    if update.callback_query:
+        await update.callback_query.edit_message_text(text, reply_markup=kb)
+    else:
+        await msg.reply_text(text, reply_markup=kb)
+
+
+async def bottle_join_action(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    query = update.callback_query
+    if not query or not update.effective_user or not update.effective_chat:
+        return
+    await query.answer()
+
+    parts = (query.data or "").split(":")
+    if len(parts) != 3:
+        return
+    actor_uid = int(parts[2])
+    joiner_uid = update.effective_user.id
+    if joiner_uid == actor_uid:
+        await query.answer("Нужен второй участник", show_alert=True)
         return
 
-    actor_uid, partner_uid = pair
-    gid = create_bottle_game(s.sqlite_path, update.effective_chat.id, actor_uid, partner_uid, update.effective_user.id)
+    lobby_key = f"bottle_lobby:{update.effective_chat.id}"
+    lobby = context.application.bot_data.get(lobby_key)
+    if not lobby or int(lobby.get("actor_uid", 0)) != actor_uid:
+        await query.answer("Игра уже закрыта", show_alert=True)
+        return
 
+    # close lobby immediately (first click wins)
+    context.application.bot_data.pop(lobby_key, None)
+
+    s = _settings(context)
+    gid = create_bottle_game(s.sqlite_path, update.effective_chat.id, actor_uid, joiner_uid, actor_uid)
     actor = _label(s.sqlite_path, update.effective_chat.id, actor_uid)
-    partner = _label(s.sqlite_path, update.effective_chat.id, partner_uid)
+    partner = _label(s.sqlite_path, update.effective_chat.id, joiner_uid)
+    task = _gen_bottle_task(actor, partner)
 
     kb = InlineKeyboardMarkup([
         [InlineKeyboardButton("✅ Выполнено (+10)", callback_data=f"bottle:done:{gid}:{actor_uid}")],
         [InlineKeyboardButton("❌ Не выполнено (-10)", callback_data=f"bottle:fail:{gid}:{actor_uid}")],
     ])
-    text = (
-        f"🍾 Бутылочка крутится...\n"
-        f"{actor} выполняет задание от {partner}.\n"
-        f"Отметьте результат:"
+    await query.edit_message_text(
+        f"🍾 Пара найдена: {actor} и {partner}\n\nЗадание:\n{task}\n\nОтметьте результат:",
+        reply_markup=kb,
     )
-    context.application.bot_data[key] = now
-    if update.callback_query:
-        await update.callback_query.edit_message_text(text, reply_markup=kb)
-    else:
-        await msg.reply_text(text, reply_markup=kb)
 
 
 async def bottle_result_action(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:

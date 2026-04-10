@@ -30,22 +30,6 @@ def get_friend_foe_top(db_path: str, chat_id: int, limit: int = 3):
     return pos, neg
 
 
-def pick_bottle_pair(db_path: str, chat_id: int) -> tuple[int, int] | None:
-    conn = get_conn(db_path)
-    cur = conn.cursor()
-    cur.execute(
-        "SELECT tg_user_id FROM member_activity WHERE chat_id = ? ORDER BY msg_count DESC LIMIT 50",
-        (chat_id,),
-    )
-    users = [int(r[0]) for r in cur.fetchall()]
-    conn.close()
-    users = list(dict.fromkeys(users))
-    if len(users) < 2:
-        return None
-    actor, partner = random.sample(users, 2)
-    return actor, partner
-
-
 def create_bottle_game(db_path: str, chat_id: int, actor_uid: int, partner_uid: int, created_by_uid: int | None) -> int:
     conn = get_conn(db_path)
     cur = conn.cursor()

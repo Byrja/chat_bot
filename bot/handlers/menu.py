@@ -284,6 +284,7 @@ async def menu_action(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
             "🎭 Развлечения\nВыбери действие:",
             reply_markup=InlineKeyboardMarkup([
                 [InlineKeyboardButton("🔮 Гороскоп", callback_data=f"menu:fun_horoscope:{issuer_id}")],
+                [InlineKeyboardButton("🍾 Бутылочка", callback_data=f"menu:fun_bottle:{issuer_id}")],
                 [InlineKeyboardButton("📚 Случайная цитата", callback_data=f"menu:fun_quote_random:{issuer_id}")],
                 [InlineKeyboardButton("🆕 Последняя цитата", callback_data=f"menu:fun_quote_latest:{issuer_id}")],
                 [InlineKeyboardButton("⬅️ В меню", callback_data=f"menu:home:{issuer_id}")],
@@ -298,7 +299,6 @@ async def menu_action(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
                 [InlineKeyboardButton("⚖️ Friend/Foe стат", callback_data=f"menu:social_ff_stats:{issuer_id}")],
                 [InlineKeyboardButton("🏆 Friend/Foe топ", callback_data=f"menu:social_ff_top:{issuer_id}")],
                 [InlineKeyboardButton("💠 Моя карма", callback_data=f"menu:social_karma_me:{issuer_id}"), InlineKeyboardButton("📈 Карма топ", callback_data=f"menu:social_karma_top:{issuer_id}")],
-                [InlineKeyboardButton("🍾 Бутылочка", callback_data=f"menu:social_bottle:{issuer_id}")],
                 [InlineKeyboardButton("⬅️ В меню", callback_data=f"menu:home:{issuer_id}")],
             ]),
         )
@@ -308,6 +308,12 @@ async def menu_action(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
         from bot.handlers.horoscope import horoscope
 
         await horoscope(update, context)
+        return
+
+    if action == "fun_bottle":
+        from bot.handlers.social import bottle_game
+
+        await bottle_game(update, context)
         return
 
     if action == "fun_quote_random":
@@ -360,12 +366,6 @@ async def menu_action(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
         from bot.handlers.social import friend_foe_top
 
         await friend_foe_top(update, context)
-        return
-
-    if action == "social_bottle":
-        from bot.handlers.social import bottle_game
-
-        await bottle_game(update, context)
         return
 
     if action == "social_karma_me":
