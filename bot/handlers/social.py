@@ -95,30 +95,43 @@ async def friend_foe_top(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         await msg.reply_text(text)
 
 
-def _fallback_bottle_task(actor: str, partner: str, third: str | None = None) -> str:
+def _fallback_bottle_task(actor: str, partner: str, third: str | None = None, mode: str = "hard") -> str:
     import random
 
     third = third or "третьего"
-    tasks = [
+    light = [
+        f"🎙 {actor}: голосовое 10–15 сек с 2 комплиментами для {partner}.",
+        f"📸 {actor}: фото самого странного предмета дома + подпись в 1 фразе.",
+        f"✍️ {actor}: напиши {partner} 3 факта, за что его ценит чат.",
+        f"🎵 {actor}: отправь трек для {partner} и объясни выбор одним предложением.",
+    ]
+    hard = [
         f"🎥 {actor}: запиши кружок 10–15 сек «как будто стоишь на голове» и передай эстафету {partner}.",
         f"🎙 {actor}: отправь голосовое со скороговоркой без запинки. {partner} оценивает: прошёл/не прошёл.",
         f"📸 {actor}: сфоткай самое грязное место в квартире и подпиши «мой угол позора».",
-        f"🧨 {actor}: в голосовом 20 сек выскажи {partner} весь накопившийся под*ёб (без семьи/реальных травм).",
         f"😂 {actor}: прожарь {partner} в 2 фразах так, чтобы было обидно и смешно одновременно.",
         f"🎯 {actor}: придумай {partner} микро-челлендж на 1 сообщение и добейся выполнения прямо в чате.",
         f"📹 {actor}: кружок «моё лицо, когда {partner} пишет 'ща приду' и не приходит».",
+        f"🤝 {actor}: выбери рандомно {third} и скажи ему комплимент так, чтобы чат не поверил.",
+    ]
+    savage = [
+        f"🧨 {actor}: в голосовом 20 сек выскажи {partner} весь накопившийся под*ёб (без семьи/реальных травм).",
         f"🎙 {actor}: голосовым скажи 3 причины, почему {partner} токсик, но любим чатом.",
-        f"📸 {actor}: покажи самый странный предмет дома и придумай ему биографию в 1 предложении.",
         f"✍️ {actor}: напиши сообщение в стиле «я официальный адвокат {partner}» и защити его за любой косяк.",
         f"🎙 {actor}: зачитай скороговорку на скорости x2, {partner} ставит вердикт.",
         f"🃏 {actor}: кидай мем + подпись «когда {partner} врывается в чат после тишины».",
-        f"🤝 {actor}: выбери рандомно {third} и скажи ему комплимент так, чтобы чат не поверил.",
         f"🎭 {actor}: отыграй в кружке «я админ чата на грани нервного срыва из-за {partner}».",
         f"⚡ {actor}: 5 слов о {partner}: 2 хороших, 2 плохих, 1 честное.",
         f"🧠 {actor}: придумай для {partner} кличку дня и обоснуй в одной жёсткой фразе.",
     ]
 
-    return random.choice(tasks)
+    pool = hard
+    if mode == "light":
+        pool = light
+    elif mode == "savage":
+        pool = savage
+
+    return random.choice(pool)
 
 
 async def bottle_game(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -143,21 +156,15 @@ async def bottle_game(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
     actor_uid = update.effective_user.id
     actor = _label(s.sqlite_path, update.effective_chat.id, actor_uid)
 
-    lobby_key = f"bottle_lobby:{update.effective_chat.id}"
-    context.application.bot_data[lobby_key] = {"actor_uid": actor_uid, "started_at": now}
-    context.application.bot_data[key] = now
-
-    kb = InlineKeyboardMarkup(
-        [[InlineKeyboardButton("🎮 Играть", callback_data=f"bottlejoin:{update.effective_chat.id}:{actor_uid}")]]
-    )
-    text = f"🍾 Бутылочка запущена {actor}.\nКто хочет быть вторым игроком — жми «Играть»."
-    # Send as a fresh message so any participant can interact naturally.
+    kb = InlineKeyboardMarkup([
+        [
+            InlineKeyboardButton("🙂 Лайт", callback_data=f"bottlemode:light:{update.effective_chat.id}:{actor_uid}"),
+            InlineKeyboardButton("😈 Жёстко", callback_data=f"bottlemode:hard:{update.effective_chat.id}:{actor_uid}"),
+            InlineKeyboardButton("💀 Отбитый", callback_data=f"bottlemode:savage:{update.effective_chat.id}:{actor_uid}"),
+        ]
+    ])
+    text = f"🍾 {actor} запускает бутылочку. Выбери режим задания:"
     await msg.reply_text(text, reply_markup=kb)
-    if update.callback_query:
-        try:
-            await update.callback_query.answer("Лобби бутылочки отправлено в чат", show_alert=False)
-        except Exception:
-            pass
 
 
 async def bottle_join_action(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -205,7 +212,8 @@ async def bottle_join_action(update: Update, context: ContextTypes.DEFAULT_TYPE)
             break
     third = _label(s.sqlite_path, update.effective_chat.id, third_uid) if third_uid else None
 
-    task = _fallback_bottle_task(actor, partner, third=third)
+    mode = str(lobby.get("mode", "hard")) if lobby else "hard"
+    task = _fallback_bottle_task(actor, partner, third=third, mode=mode)
 
     kb = InlineKeyboardMarkup([
         [InlineKeyboardButton("✅ Выполнено (+10)", callback_data=f"bottle:done:{gid}:{actor_uid}")],
