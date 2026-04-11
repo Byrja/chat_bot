@@ -176,6 +176,27 @@ CREATE TABLE IF NOT EXISTS bottle_games (
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     resolved_at DATETIME
 );
+
+CREATE TABLE IF NOT EXISTS friendships (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    chat_id INTEGER NOT NULL,
+    user_a INTEGER NOT NULL,
+    user_b INTEGER NOT NULL,
+    status TEXT NOT NULL DEFAULT 'pending' CHECK(status IN ('pending','accepted')),
+    pending_from INTEGER NOT NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    accepted_at DATETIME,
+    UNIQUE(chat_id, user_a, user_b)
+);
+
+CREATE TABLE IF NOT EXISTS goats (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    chat_id INTEGER NOT NULL,
+    from_tg_user_id INTEGER NOT NULL,
+    to_tg_user_id INTEGER NOT NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(chat_id, from_tg_user_id, to_tg_user_id)
+);
 """
 
 

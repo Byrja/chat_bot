@@ -26,6 +26,8 @@ async def about(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         "Социалка:\n"
         "/friend_foe_stats — friend/foe статистика\n"
         "/friend_foe_top — friend/foe топ\n"
+        "/relation (reply) — предложить дружбу/записать в козлы\n"
+        "/relations — мои отношения\n"
         "/bottle — бутылочка\n"
         "+ / - (reply) — быстрые карма-реакции\n\n"
         "Цитаты:\n"
