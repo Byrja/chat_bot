@@ -4,18 +4,20 @@ from telegram.ext import ContextTypes
 from bot.config import Settings
 from bot.repositories.roles import get_role, set_role
 
-_VALID = {"admin", "old", "trusted", "newbie"}
+_VALID = {"admin", "old", "trusted", "newbie", "lava"}
 _ROLE_RU = {
     "admin": "Админ",
     "old": "Олд",
     "trusted": "Проверенный",
     "newbie": "Новичок",
+    "lava": "Токсичная лава",
 }
 _NUM_MAP = {
     "1": "admin",
     "2": "old",
     "3": "trusted",
     "4": "newbie",
+    "5": "lava",
 }
 
 
@@ -38,17 +40,17 @@ async def set_role_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         return
 
     if not update.message.reply_to_message or not update.message.reply_to_message.from_user:
-        await update.message.reply_text("Используй /role <admin|old|trusted|newbie> ответом на сообщение пользователя")
+        await update.message.reply_text("Используй /role <admin|old|trusted|newbie|lava> ответом на сообщение пользователя")
         return
 
     if not context.args:
-        await update.message.reply_text("Укажи роль: 1|2|3|4 (или admin|old|trusted|newbie)")
+        await update.message.reply_text("Укажи роль: 1|2|3|4|5 (или admin|old|trusted|newbie|lava)")
         return
 
     raw = (context.args[0] or "").strip().lower()
     role = _NUM_MAP.get(raw, raw)
     if role not in _VALID:
-        await update.message.reply_text("Неизвестная роль. Доступно: 1=admin, 2=old, 3=trusted, 4=newbie")
+        await update.message.reply_text("Неизвестная роль. Доступно: 1=admin, 2=old, 3=trusted, 4=newbie, 5=lava")
         return
 
     target = update.message.reply_to_message.from_user

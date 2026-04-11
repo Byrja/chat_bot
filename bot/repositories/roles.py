@@ -1,6 +1,6 @@
 from bot.db import get_conn
 
-_VALID = {"admin", "old", "trusted", "newbie"}
+_VALID = {"admin", "old", "trusted", "newbie", "lava"}
 
 
 def get_role(db_path: str, tg_user_id: int) -> str:

@@ -105,7 +105,7 @@ ON reply_pairs(chat_id, pair_count DESC);
 
 CREATE TABLE IF NOT EXISTS member_roles (
     tg_user_id INTEGER PRIMARY KEY,
-    role TEXT NOT NULL CHECK(role IN ('admin','old','trusted','newbie')) DEFAULT 'newbie',
+    role TEXT NOT NULL CHECK(role IN ('admin','old','trusted','newbie','lava')) DEFAULT 'newbie',
     assigned_by_tg_user_id INTEGER,
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
@@ -211,10 +211,39 @@ def get_conn(db_path: str) -> sqlite3.Connection:
     return conn
 
 
+def _migrate_member_roles_lava(conn: sqlite3.Connection) -> None:
+    cur = conn.cursor()
+    cur.execute("SELECT sql FROM sqlite_master WHERE type='table' AND name='member_roles'")
+    row = cur.fetchone()
+    ddl = (row[0] or "") if row else ""
+    if "'lava'" in ddl:
+        return
+
+    cur.execute(
+        """
+        CREATE TABLE IF NOT EXISTS member_roles_new (
+            tg_user_id INTEGER PRIMARY KEY,
+            role TEXT NOT NULL CHECK(role IN ('admin','old','trusted','newbie','lava')) DEFAULT 'newbie',
+            assigned_by_tg_user_id INTEGER,
+            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )
+        """
+    )
+    cur.execute(
+        """
+        INSERT INTO member_roles_new (tg_user_id, role, assigned_by_tg_user_id, updated_at)
+        SELECT tg_user_id, role, assigned_by_tg_user_id, updated_at FROM member_roles
+        """
+    )
+    cur.execute("DROP TABLE member_roles")
+    cur.execute("ALTER TABLE member_roles_new RENAME TO member_roles")
+
+
 def init_db(db_path: str) -> None:
     conn = get_conn(db_path)
     try:
         conn.executescript(SCHEMA_SQL)
+        _migrate_member_roles_lava(conn)
         conn.commit()
     finally:
         conn.close()

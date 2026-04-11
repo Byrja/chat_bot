@@ -15,6 +15,7 @@ _ROLE_RU = {
     "old": "Олд",
     "trusted": "Проверенный",
     "newbie": "Новичок",
+    "lava": "Токсичная лава",
 }
 
 
@@ -624,7 +625,7 @@ async def menu_action(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
             return
 
         seen = set()
-        grouped = {"admin": [], "old": [], "trusted": [], "newbie": []}
+        grouped = {"admin": [], "old": [], "trusted": [], "newbie": [], "lava": []}
         for uid2, uname, fname in rows:
             uid2 = int(uid2)
             if uid2 in seen:
@@ -637,7 +638,7 @@ async def menu_action(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
                 break
 
         lines = ["👥 Статусы участников", "───────────────────"]
-        for role_key in ["admin", "old", "trusted", "newbie"]:
+        for role_key in ["admin", "old", "trusted", "newbie", "lava"]:
             arr = grouped.get(role_key, [])
             lines.append(f"\n{_ROLE_RU.get(role_key, role_key)} ({len(arr)}):")
             if arr:

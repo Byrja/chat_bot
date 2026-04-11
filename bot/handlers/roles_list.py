@@ -12,6 +12,7 @@ _ROLE_RU = {
     "old": "Олд",
     "trusted": "Проверенный",
     "newbie": "Новичок",
+    "lava": "Токсичная лава",
 }
 
 
@@ -57,14 +58,14 @@ async def roles_list(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
         seen.add(uid)
         users.append((uid, str(uname), str(fname)))
 
-    grouped: dict[str, list[str]] = {"admin": [], "old": [], "trusted": [], "newbie": []}
+    grouped: dict[str, list[str]] = {"admin": [], "old": [], "trusted": [], "newbie": [], "lava": []}
     for uid, uname, fname in users:
         role = "admin" if uid in s.admin_user_ids else get_role(s.sqlite_path, uid)
         label = (fname or uname or str(uid))
         grouped.setdefault(role, []).append(label)
 
     lines = ["👥 Статусы участников", "───────────────────"]
-    for role_key in ["admin", "old", "trusted", "newbie"]:
+    for role_key in ["admin", "old", "trusted", "newbie", "lava"]:
         arr = grouped.get(role_key, [])
         lines.append(f"\n{_ROLE_RU.get(role_key, role_key)} ({len(arr)}):")
         if arr:

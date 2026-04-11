@@ -7,7 +7,7 @@ _ALLOWED = {
     "mute": {"admin"},
     "ban": {"admin"},
     "admin_stats": {"admin"},
-    "activity": {"admin", "old", "trusted", "newbie"},
+    "activity": {"admin", "old", "trusted", "newbie", "lava"},
 }
 
 
