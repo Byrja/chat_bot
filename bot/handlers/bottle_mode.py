@@ -22,16 +22,18 @@ async def bottle_mode_action(update: Update, context: ContextTypes.DEFAULT_TYPE)
         return
 
     actor_uid = int(actor_s)
-    if update.effective_user.id != actor_uid:
-        await query.answer("Режим выбирает тот, кто запустил бутылочку", show_alert=True)
-        return
 
     key = f"bottle_last_ts:{update.effective_chat.id}"
     import time
     now = time.time()
-    context.application.bot_data[key] = now
 
     lobby_key = f"bottle_lobby:{update.effective_chat.id}"
+    lobby = context.application.bot_data.get(lobby_key)
+    if lobby and lobby.get("mode"):
+        await query.answer("Режим уже выбран", show_alert=False)
+        return
+
+    context.application.bot_data[key] = now
     context.application.bot_data[lobby_key] = {"actor_uid": actor_uid, "started_at": now, "mode": mode}
 
     kb = InlineKeyboardMarkup([[InlineKeyboardButton("🎮 Играть", callback_data=f"bottlejoin:{update.effective_chat.id}:{actor_uid}")]])
