@@ -95,9 +95,7 @@ async def friend_foe_top(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         await msg.reply_text(text)
 
 
-def _fallback_bottle_task(actor: str, partner: str, third: str | None = None, mode: str = "hard") -> str:
-    import random
-
+def _bottle_task_pool(actor: str, partner: str, third: str | None = None, mode: str = "hard") -> list[str]:
     third = third or "третьего"
     light = [
         f"🎙 {actor}: голосовое 10–15 сек с 2 комплиментами для {partner}.",
@@ -146,7 +144,7 @@ def _fallback_bottle_task(actor: str, partner: str, third: str | None = None, mo
     elif mode == "savage":
         pool = savage
 
-    return random.choice(pool)
+    return pool
 
 
 async def bottle_game(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -229,7 +227,18 @@ async def bottle_join_action(update: Update, context: ContextTypes.DEFAULT_TYPE)
     third = _label(s.sqlite_path, update.effective_chat.id, third_uid) if third_uid else None
 
     mode = str(lobby.get("mode", "hard")) if lobby else "hard"
-    task = _fallback_bottle_task(actor, partner, third=third, mode=mode)
+    pool = _bottle_task_pool(actor, partner, third=third, mode=mode)
+
+    # Anti-repeat: avoid recently used tasks in this chat.
+    hist_key = f"bottle_recent_tasks:{update.effective_chat.id}"
+    recent = list(context.application.bot_data.get(hist_key, []))
+    candidates = [t for t in pool if t not in recent]
+    import random
+    task = random.choice(candidates if candidates else pool)
+
+    recent.append(task)
+    # Keep last 10 tasks
+    context.application.bot_data[hist_key] = recent[-10:]
 
     # Result buttons are bound to performer (partner/joiner)
     kb = InlineKeyboardMarkup([
