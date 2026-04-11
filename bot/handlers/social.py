@@ -207,6 +207,7 @@ async def bottle_join_action(update: Update, context: ContextTypes.DEFAULT_TYPE)
     context.application.bot_data.pop(lobby_key, None)
 
     s = _settings(context)
+    # actor_uid = initiator (task giver), joiner_uid = performer
     gid = create_bottle_game(s.sqlite_path, update.effective_chat.id, actor_uid, joiner_uid, actor_uid)
     actor = _label(s.sqlite_path, update.effective_chat.id, actor_uid)
     partner = _label(s.sqlite_path, update.effective_chat.id, joiner_uid)
@@ -230,12 +231,17 @@ async def bottle_join_action(update: Update, context: ContextTypes.DEFAULT_TYPE)
     mode = str(lobby.get("mode", "hard")) if lobby else "hard"
     task = _fallback_bottle_task(actor, partner, third=third, mode=mode)
 
+    # Result buttons are bound to performer (partner/joiner)
     kb = InlineKeyboardMarkup([
-        [InlineKeyboardButton("✅ Выполнено (+10)", callback_data=f"bottle:done:{gid}:{actor_uid}")],
-        [InlineKeyboardButton("❌ Не выполнено (-10)", callback_data=f"bottle:fail:{gid}:{actor_uid}")],
+        [InlineKeyboardButton("✅ Выполнено (+10)", callback_data=f"bottle:done:{gid}:{joiner_uid}")],
+        [InlineKeyboardButton("❌ Не выполнено (-10)", callback_data=f"bottle:fail:{gid}:{joiner_uid}")],
     ])
     await query.edit_message_text(
-        f"🍾 Пара найдена: {actor} и {partner}\n\nЗадание:\n{task}\n\nОтметьте результат:",
+        f"🍾 Пара найдена: {actor} и {partner}\n"
+        f"Исполнитель: {partner}\n"
+        f"Кто даёт задание: {actor}\n\n"
+        f"Задание:\n{task}\n\n"
+        f"Отметьте результат:",
         reply_markup=kb,
     )
 
@@ -267,12 +273,12 @@ async def bottle_result_action(update: Update, context: ContextTypes.DEFAULT_TYP
         await query.edit_message_text("Эта игра уже закрыта или недоступна")
         return
 
-    actor_uid_db, _partner_uid = resolved
+    _giver_uid_db, performer_uid_db = resolved
     delta = 10 if action == "done" else -10
-    apply_karma(s.sqlite_path, update.effective_chat.id, 0, actor_uid_db, delta, reason="bottle_game")
+    apply_karma(s.sqlite_path, update.effective_chat.id, 0, performer_uid_db, delta, reason="bottle_game")
 
-    actor = _label(s.sqlite_path, update.effective_chat.id, actor_uid_db)
+    performer = _label(s.sqlite_path, update.effective_chat.id, performer_uid_db)
     if delta > 0:
-        await query.edit_message_text(f"✅ Задание выполнено. {actor} получает +10 кармы")
+        await query.edit_message_text(f"✅ Задание выполнено. {performer} получает +10 кармы")
     else:
-        await query.edit_message_text(f"❌ Задание провалено. {actor} получает -10 кармы")
+        await query.edit_message_text(f"❌ Задание провалено. {performer} получает -10 кармы")
