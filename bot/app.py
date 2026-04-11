@@ -1,4 +1,4 @@
-from telegram import Update
+from telegram import MenuButtonCommands, Update
 from telegram.ext import Application, CallbackQueryHandler, CommandHandler, ConversationHandler, MessageHandler, PicklePersistence, filters
 
 from bot.config import Settings
@@ -39,6 +39,7 @@ from bot.handlers.fun import hipish, mute_me
 from bot.handlers.karma import karma_me, karma_minus, karma_plus, karma_plusminus_reply, karma_top_cmd
 from bot.handlers.horoscope import horoscope
 from bot.handlers.roles_admin import set_role_command, whois_command
+from bot.commands import command_list
 from bot.handlers.start import health
 from bot.handlers.top_pairs import show_top_pairs
 from bot.handlers.top_week import show_top_week
@@ -47,12 +48,20 @@ from bot.handlers.bottle_mode import bottle_mode_action
 from bot.handlers.social import bottle_game, bottle_join_action, bottle_result_action, friend_foe_stats, friend_foe_top
 
 
+async def _post_init(app: Application) -> None:
+    try:
+        await app.bot.set_my_commands(command_list())
+        await app.bot.set_chat_menu_button(menu_button=MenuButtonCommands())
+    except Exception:
+        pass
+
+
 def build_app(settings: Settings) -> Application:
     if not settings.telegram_bot_token:
         raise RuntimeError("TELEGRAM_BOT_TOKEN is not set")
 
     persistence = PicklePersistence(filepath="data/bot_state.pkl")
-    app = Application.builder().token(settings.telegram_bot_token).persistence(persistence).build()
+    app = Application.builder().token(settings.telegram_bot_token).persistence(persistence).post_init(_post_init).build()
     app.settings = settings
     app.bot_data["settings"] = settings
 
