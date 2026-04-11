@@ -25,6 +25,7 @@ from bot.handlers.questionnaire import (
     receive_photo,
     receive_reject_reason,
 )
+from bot.handlers.about import about
 from bot.handlers.activity import show_activity, track_message_activity
 from bot.handlers.menu import menu_action, show_menu
 from bot.handlers.mod_panel import mod_panel, mod_quick_action, mod_quick_ask_reason
@@ -114,6 +115,7 @@ def build_app(settings: Settings) -> Application:
     app.add_handler(CommandHandler("friend_foe_stats", friend_foe_stats))
     app.add_handler(CommandHandler("friend_foe_top", friend_foe_top))
     app.add_handler(CommandHandler("bottle", bottle_game))
+    app.add_handler(CommandHandler("about", about))
     app.add_handler(CommandHandler("menu", show_menu))
     app.add_handler(CommandHandler("horoscope", horoscope))
     app.add_handler(CommandHandler("mod", mod_panel))
