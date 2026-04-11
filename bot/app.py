@@ -32,7 +32,7 @@ from bot.handlers.mod_panel import mod_panel, mod_quick_action, mod_quick_ask_re
 from bot.handlers.profile_input import capture_birthdate_input
 from bot.handlers.questionnaire_lookup import questionnaire_lookup
 from bot.handlers.quotes import latest_quote_cmd, random_quote_cmd, save_quote
-from bot.handlers.admin_sanctions import ban_user, mute_user, warn_user
+from bot.handlers.admin_sanctions import ban_user, mute_user, unmute_user, warn_user
 from bot.handlers.admin_stats import admin_stats
 from bot.handlers.errors import on_error
 from bot.handlers.drama import days_without_drama, drama_reset
@@ -97,6 +97,7 @@ def build_app(settings: Settings) -> Application:
     app.add_handler(mod_flow)
     app.add_handler(CommandHandler("warn", warn_user))
     app.add_handler(CommandHandler("mute", mute_user))
+    app.add_handler(CommandHandler("unmute", unmute_user))
     app.add_handler(CommandHandler("ban", ban_user))
     app.add_handler(CommandHandler("admin_stats", admin_stats))
     app.add_handler(CommandHandler("role", set_role_command))

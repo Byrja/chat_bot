@@ -15,6 +15,10 @@
 - Restricts user messaging in current chat.
 - Adds mute record to DB + audit event.
 
+### `/unmute`
+- Use as reply to user's message.
+- Restores send permissions in current chat.
+
 ### `/ban [reason...]`
 - Use as reply to user's message.
 - Bans user from current chat.

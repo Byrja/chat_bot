@@ -45,6 +45,7 @@ async def about(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         "/mod (reply) — кнопочная мод-панель\n"
         "/warn (reply)\n"
         "/mute <минуты> (reply)\n"
+        "/unmute (reply)\n"
         "/ban (reply)\n"
         "/admin_stats\n"
         "/role <1|2|3|4> (reply)\n"

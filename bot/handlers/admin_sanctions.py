@@ -116,6 +116,46 @@ async def ban_user(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     await update.message.reply_text(text)
 
 
+async def unmute_user(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    if not update.message or not update.effective_chat:
+        return
+    if not _can(update, context, "mute"):
+        await update.message.reply_text("Недостаточно прав")
+        return
+
+    if not update.message.reply_to_message or not update.message.reply_to_message.from_user:
+        await update.message.reply_text("Используй /unmute ответом на сообщение пользователя")
+        return
+
+    target = update.message.reply_to_message.from_user
+    if target.is_bot:
+        await update.message.reply_text("Боту unmute не требуется")
+        return
+
+    try:
+        await context.bot.restrict_chat_member(
+            chat_id=update.effective_chat.id,
+            user_id=target.id,
+            permissions=ChatPermissions(
+                can_send_messages=True,
+                can_send_audios=True,
+                can_send_documents=True,
+                can_send_photos=True,
+                can_send_videos=True,
+                can_send_video_notes=True,
+                can_send_voice_notes=True,
+                can_send_polls=True,
+                can_send_other_messages=True,
+                can_add_web_page_previews=True,
+            ),
+        )
+    except Exception as e:
+        await update.message.reply_text(f"Не удалось снять мут: {e}")
+        return
+
+    await update.message.reply_text(f"🔊 Мут снят с пользователя {target.id}")
+
+
 async def warn_user(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if not update.message:
         return
