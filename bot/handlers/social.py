@@ -67,7 +67,7 @@ async def friend_foe_top(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     s = _settings(context)
     pos, neg = get_friend_foe_top(s.sqlite_path, update.effective_chat.id, limit=3)
 
-    lines = ["👥 Friend/Foe топ", "───────────────────", "🤝 Друзья:"]
+    lines = ["👥 Топ друзей и козлов", "───────────────────", "🤝 Друзья:"]
     if pos:
         for i, (uid, score) in enumerate(pos, 1):
             lines.append(f"{i}. {_label(s.sqlite_path, update.effective_chat.id, int(uid))} — {int(score)}")

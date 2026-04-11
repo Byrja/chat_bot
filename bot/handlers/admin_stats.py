@@ -44,7 +44,7 @@ async def admin_stats(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
     approve_rate = (approved / decision_total * 100) if decision_total else 0.0
 
     text = (
-        "📊 МДЧ Admin Stats\n"
+        "📊 Статистика МДЧ\n"
         "───────────────────\n"
         f"Applications total: {total}\n"
         f"Submitted: {submitted}\n"

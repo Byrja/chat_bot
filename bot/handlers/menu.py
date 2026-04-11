@@ -304,8 +304,8 @@ async def menu_action(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
         await query.edit_message_text(
             "👥 Социалка\nВыбери действие:",
             reply_markup=InlineKeyboardMarkup([
-                [InlineKeyboardButton("⚖️ Friend/Foe стат", callback_data=f"menu:social_ff_stats:{issuer_id}")],
-                [InlineKeyboardButton("🏆 Friend/Foe топ", callback_data=f"menu:social_ff_top:{issuer_id}")],
+                [InlineKeyboardButton("⚖️ Друзья/козлы: стат", callback_data=f"menu:social_ff_stats:{issuer_id}")],
+                [InlineKeyboardButton("🏆 Друзья/козлы: топ", callback_data=f"menu:social_ff_top:{issuer_id}")],
                 [InlineKeyboardButton("💠 Моя карма", callback_data=f"menu:social_karma_me:{issuer_id}"), InlineKeyboardButton("📈 Карма топ", callback_data=f"menu:social_karma_top:{issuer_id}")],
                 [InlineKeyboardButton("🤝/😈 Отношения (reply)", callback_data=f"menu:social_relation_help:{issuer_id}")],
                 [InlineKeyboardButton("⬅️ В меню", callback_data=f"menu:home:{issuer_id}")],
