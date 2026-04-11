@@ -21,7 +21,7 @@ async def show_top_week(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
     else:
         lines = ["📆 Топ ноулайферов (7 дней)", "───────────────────"]
         for i, (uid, cnt, last_at, username, first_name) in enumerate(rows, 1):
-            label = f"@{username}" if username else (first_name or str(uid))
+            label = first_name or username or str(uid)
             lines.append(f"{i}. {label} — {cnt} | {last_at or '—'}")
         text = "\n".join(lines)
 

@@ -38,7 +38,7 @@ async def show_top_pairs(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             r = cur.fetchone()
             if r:
                 uname, fname = r
-                labels[uid] = f"@{uname}" if uname else (fname or str(uid))
+                labels[uid] = fname or uname or str(uid)
         conn.close()
 
         title = "💬 Топ пар (7 дней)" if since_days else "💬 Топ пар (по reply)"

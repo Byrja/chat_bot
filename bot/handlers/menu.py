@@ -157,7 +157,7 @@ async def menu_action(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
                 r = cur.fetchone()
                 if r:
                     uname, fname = r
-                    labels[uid] = f"@{uname}" if uname else (fname or str(uid))
+                    labels[uid] = fname or uname or str(uid)
             conn.close()
 
             title = "💬 Топ пар (7 дней)" if action == "pairs_week" else "💬 Топ пар (всё время)"
@@ -198,7 +198,7 @@ async def menu_action(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
         else:
             lines = ["📆 Топ ноулайферов (7 дней)", "───────────────────"]
             for i, (uid2, cnt, last_at, username, first_name) in enumerate(rows, 1):
-                label = f"@{username}" if username else (first_name or str(uid2))
+                label = (first_name or username or str(uid2))
                 lines.append(f"{i}. {label} — {cnt} | {last_at or '—'}")
             text = "\n".join(lines)
 
@@ -266,7 +266,7 @@ async def menu_action(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
                     username, first_name, cnt, last_at = row
                 else:
                     _uid, cnt, last_at, username, first_name = row
-                label = f"@{username}" if username else (first_name or "user")
+                label = (first_name or username or "user")
                 lines.append(f"{i}. {label} — {cnt} | {last_at or '—'}")
             text = "\n".join(lines)
 
