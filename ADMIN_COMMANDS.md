@@ -30,10 +30,15 @@
 ### `/top_week`
 - Top nolifers for last 7 days.
 
-### `/role <admin|old|trusted|newbie>`
+### `/role <1|2|3|4>`
 - Admin-only (from `ADMIN_USER_IDS`).
 - Use as reply to a user's message.
-- Sets participant role.
+- Role map:
+  - `1` = admin
+  - `2` = old
+  - `3` = trusted
+  - `4` = newbie
+- Text aliases still work: `admin|old|trusted|newbie`.
 
 ### `/mod`
 - Admin-only.

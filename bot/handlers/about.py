@@ -45,7 +45,7 @@ async def about(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         "/mute <минуты> (reply)\n"
         "/ban (reply)\n"
         "/admin_stats\n"
-        "/role <admin|old|trusted|newbie> (reply)\n"
+        "/role <1|2|3|4> (reply)\n"
         "/whois (reply)\n"
         "/drama — сброс счётчика драмы\n"
     )
