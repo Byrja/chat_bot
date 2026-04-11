@@ -307,6 +307,7 @@ async def menu_action(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
                 [InlineKeyboardButton("⚖️ Friend/Foe стат", callback_data=f"menu:social_ff_stats:{issuer_id}")],
                 [InlineKeyboardButton("🏆 Friend/Foe топ", callback_data=f"menu:social_ff_top:{issuer_id}")],
                 [InlineKeyboardButton("💠 Моя карма", callback_data=f"menu:social_karma_me:{issuer_id}"), InlineKeyboardButton("📈 Карма топ", callback_data=f"menu:social_karma_top:{issuer_id}")],
+                [InlineKeyboardButton("🤝/😈 Отношения (reply)", callback_data=f"menu:social_relation_help:{issuer_id}")],
                 [InlineKeyboardButton("⬅️ В меню", callback_data=f"menu:home:{issuer_id}")],
             ]),
         )
@@ -422,6 +423,17 @@ async def menu_action(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
             lines.append("—")
 
         await query.edit_message_text("\n".join(lines), reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("⬅️ Назад", callback_data=f"menu:social:{issuer_id}")]]))
+        return
+
+    if action == "social_relation_help":
+        await query.edit_message_text(
+            "🤝/😈 Отношения\n"
+            "Чтобы предложить дружбу или записать в козлы:\n"
+            "1) Ответь (reply) на сообщение участника\n"
+            "2) Отправь команду: /relation\n\n"
+            "Проверить свои отношения: /relations",
+            reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("⬅️ Назад", callback_data=f"menu:social:{issuer_id}")]]),
+        )
         return
 
     if action == "fun_hipish":
