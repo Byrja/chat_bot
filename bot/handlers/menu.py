@@ -7,6 +7,7 @@ from telegram.ext import ContextTypes
 from bot.config import Settings
 from bot.db import get_conn
 from bot.repositories.profile import clear_birthdate, get_birthdate, set_birthdate
+from bot.repositories.roles import get_role
 from bot.services.rbac import effective_role, has_permission
 
 
@@ -569,7 +570,58 @@ async def menu_action(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
             "/warn причина\n"
             "/mute 30 причина\n"
             "/ban причина",
-            reply_markup=_back_kb(issuer_id),
+            reply_markup=InlineKeyboardMarkup([
+                [InlineKeyboardButton("👥 Статусы участников", callback_data=f"menu:mod_roles:{issuer_id}")],
+                [InlineKeyboardButton("⬅️ Назад", callback_data=f"menu:home:{issuer_id}")],
+            ]),
+        )
+        return
+
+    if action == "mod_roles":
+        if not has_permission(s, s.sqlite_path, uid, "warn"):
+            await query.edit_message_text("Недостаточно прав", reply_markup=_back_kb(issuer_id))
+            return
+
+        conn = get_conn(s.sqlite_path)
+        cur = conn.cursor()
+        cur.execute(
+            """
+            SELECT tg_user_id, COALESCE(username,''), COALESCE(first_name,'')
+            FROM member_activity
+            WHERE chat_id = ?
+            ORDER BY datetime(updated_at) DESC
+            LIMIT 200
+            """,
+            (s.main_chat_id,),
+        )
+        rows = cur.fetchall()
+        conn.close()
+
+        if not rows:
+            await query.edit_message_text(
+                "Пока нет данных по участникам в этом чате.",
+                reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("⬅️ Назад", callback_data=f"menu:mod:{issuer_id}")]]),
+            )
+            return
+
+        seen = set()
+        lines = ["👥 Статусы участников", "───────────────────"]
+        i = 0
+        for uid2, uname, fname in rows:
+            uid2 = int(uid2)
+            if uid2 in seen:
+                continue
+            seen.add(uid2)
+            i += 1
+            role = "admin" if uid2 in s.admin_user_ids else get_role(s.sqlite_path, uid2)
+            label = (str(fname) or str(uname) or str(uid2))
+            lines.append(f"{i}. {label} — {role}")
+            if i >= 40:
+                break
+
+        await query.edit_message_text(
+            "\n".join(lines),
+            reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("⬅️ Назад", callback_data=f"menu:mod:{issuer_id}")]]),
         )
         return
 
