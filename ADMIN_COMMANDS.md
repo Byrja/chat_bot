@@ -45,6 +45,10 @@
 - Use as reply to a user's message.
 - Opens quick inline moderation panel (warn / mute30 / ban).
 
+### `/roles`
+- Admin-only.
+- Shows roles for participants seen in current chat.
+
 ### `/whois`
 - If used in reply: shows target user's role.
 - Without reply: shows your role.

@@ -40,6 +40,7 @@ from bot.handlers.fun import hipish, mute_me
 from bot.handlers.karma import karma_me, karma_minus, karma_plus, karma_plusminus_reply, karma_top_cmd
 from bot.handlers.horoscope import horoscope
 from bot.handlers.roles_admin import set_role_command, whois_command
+from bot.handlers.roles_list import roles_list
 from bot.commands import command_list
 from bot.handlers.start import health
 from bot.handlers.top_pairs import show_top_pairs
@@ -98,6 +99,7 @@ def build_app(settings: Settings) -> Application:
     app.add_handler(CommandHandler("ban", ban_user))
     app.add_handler(CommandHandler("admin_stats", admin_stats))
     app.add_handler(CommandHandler("role", set_role_command))
+    app.add_handler(CommandHandler("roles", roles_list))
     app.add_handler(CommandHandler("whois", whois_command))
     app.add_handler(CommandHandler("activity", show_activity))
     app.add_handler(CommandHandler("top_pairs", show_top_pairs))
