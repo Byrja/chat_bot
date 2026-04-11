@@ -22,7 +22,15 @@ def _settings(context: ContextTypes.DEFAULT_TYPE) -> Settings:
 
 
 async def questionnaire_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    if not update.message or not update.effective_user:
+    if not update.message or not update.effective_user or not update.effective_chat:
+        return ConversationHandler.END
+
+    if update.effective_chat.type != "private":
+        bot_username = context.bot.username or "MD4_byrbot"
+        await update.message.reply_text(
+            "Анкета доступна только в личке бота.\n"
+            f"Открой: https://t.me/{bot_username}?start=apply"
+        )
         return ConversationHandler.END
 
     s = _settings(context)

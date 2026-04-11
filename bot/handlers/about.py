@@ -47,6 +47,7 @@ async def about(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         "/admin_stats\n"
         "/role <admin|old|trusted|newbie> (reply)\n"
         "/whois (reply)\n"
+        "/drama — сброс счётчика драмы\n"
     )
 
     if update.callback_query:

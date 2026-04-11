@@ -526,8 +526,10 @@ async def menu_action(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
         return
 
     if action == "settings_editform":
+        bot_username = context.bot.username or "MD4_byrbot"
         await query.edit_message_text(
-            "Чтобы обновить свою анкету, просто нажми /start и пройди заново.",
+            "Чтобы обновить свою анкету, открой личку бота и нажми /start:\n"
+            f"https://t.me/{bot_username}?start=apply",
             reply_markup=_back_kb(issuer_id),
         )
         return
