@@ -5,6 +5,12 @@ from bot.config import Settings
 from bot.repositories.roles import get_role, set_role
 
 _VALID = {"admin", "old", "trusted", "newbie"}
+_ROLE_RU = {
+    "admin": "Админ",
+    "old": "Олд",
+    "trusted": "Проверенный",
+    "newbie": "Новичок",
+}
 _NUM_MAP = {
     "1": "admin",
     "2": "old",
@@ -52,7 +58,7 @@ async def set_role_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         await update.message.reply_text("Не удалось сохранить роль")
         return
 
-    await update.message.reply_text(f"Роль для {target.id} обновлена: {role}")
+    await update.message.reply_text(f"Роль для {target.id} обновлена: {_ROLE_RU.get(role, role)}")
 
 
 async def whois_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -68,5 +74,5 @@ async def whois_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
         return
 
     role = "admin" if target.id in s.admin_user_ids else get_role(s.sqlite_path, target.id)
-    label = f"@{target.username}" if target.username else str(target.id)
-    await update.message.reply_text(f"Пользователь {label}\nРоль: {role}")
+    label = target.first_name or (f"@{target.username}" if target.username else str(target.id))
+    await update.message.reply_text(f"Пользователь: {label}\nРоль: {_ROLE_RU.get(role, role)}")

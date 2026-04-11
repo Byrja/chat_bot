@@ -10,6 +10,13 @@ from bot.repositories.profile import clear_birthdate, get_birthdate, set_birthda
 from bot.repositories.roles import get_role
 from bot.services.rbac import effective_role, has_permission
 
+_ROLE_RU = {
+    "admin": "Админ",
+    "old": "Олд",
+    "trusted": "Проверенный",
+    "newbie": "Новичок",
+}
+
 
 def _settings(context: ContextTypes.DEFAULT_TYPE) -> Settings:
     return context.application.bot_data.get("settings") or context.application.settings
@@ -94,7 +101,7 @@ async def menu_action(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
         await query.edit_message_text(
             "📊 Твоя статистика\n"
             "───────────────────\n"
-            f"Роль: {role}\n"
+            f"Роль: {_ROLE_RU.get(role, role)}\n"
             f"Сообщений в чате: {msg_count}\n"
             f"Последнее сообщение: {last_at or '—'}",
             reply_markup=_back_kb(issuer_id),
@@ -482,7 +489,7 @@ async def menu_action(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
         await query.edit_message_text(
             "⚙️ Твой профиль и настройки\n"
             "───────────────────\n"
-            f"Роль: {role}\n"
+            f"Роль: {_ROLE_RU.get(role, role)}\n"
             f"Дата рождения: {btxt}\n"
             f"Карма: {karma}\n\n"
             "Выбери действие:",
@@ -605,19 +612,27 @@ async def menu_action(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
             return
 
         seen = set()
-        lines = ["👥 Статусы участников", "───────────────────"]
-        i = 0
+        grouped = {"admin": [], "old": [], "trusted": [], "newbie": []}
         for uid2, uname, fname in rows:
             uid2 = int(uid2)
             if uid2 in seen:
                 continue
             seen.add(uid2)
-            i += 1
             role = "admin" if uid2 in s.admin_user_ids else get_role(s.sqlite_path, uid2)
             label = (str(fname) or str(uname) or str(uid2))
-            lines.append(f"{i}. {label} — {role}")
-            if i >= 40:
+            grouped.setdefault(role, []).append(label)
+            if sum(len(v) for v in grouped.values()) >= 40:
                 break
+
+        lines = ["👥 Статусы участников", "───────────────────"]
+        for role_key in ["admin", "old", "trusted", "newbie"]:
+            arr = grouped.get(role_key, [])
+            lines.append(f"\n{_ROLE_RU.get(role_key, role_key)} ({len(arr)}):")
+            if arr:
+                for i, label in enumerate(arr, 1):
+                    lines.append(f"{i}. {label}")
+            else:
+                lines.append("—")
 
         await query.edit_message_text(
             "\n".join(lines),

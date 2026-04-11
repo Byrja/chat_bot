@@ -7,6 +7,14 @@ from bot.repositories.roles import get_role
 from bot.services.rbac import has_permission
 
 
+_ROLE_RU = {
+    "admin": "Админ",
+    "old": "Олд",
+    "trusted": "Проверенный",
+    "newbie": "Новичок",
+}
+
+
 def _settings(context: ContextTypes.DEFAULT_TYPE) -> Settings:
     return context.application.bot_data.get("settings") or context.application.settings
 
@@ -49,11 +57,21 @@ async def roles_list(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
         seen.add(uid)
         users.append((uid, str(uname), str(fname)))
 
-    lines = ["👥 Статусы участников", "───────────────────"]
-    for i, (uid, uname, fname) in enumerate(users, 1):
+    grouped: dict[str, list[str]] = {"admin": [], "old": [], "trusted": [], "newbie": []}
+    for uid, uname, fname in users:
         role = "admin" if uid in s.admin_user_ids else get_role(s.sqlite_path, uid)
-        label = f"@{uname}" if uname else (fname or str(uid))
-        lines.append(f"{i}. {label} — {role}")
+        label = (fname or uname or str(uid))
+        grouped.setdefault(role, []).append(label)
+
+    lines = ["👥 Статусы участников", "───────────────────"]
+    for role_key in ["admin", "old", "trusted", "newbie"]:
+        arr = grouped.get(role_key, [])
+        lines.append(f"\n{_ROLE_RU.get(role_key, role_key)} ({len(arr)}):")
+        if arr:
+            for i, label in enumerate(arr, 1):
+                lines.append(f"{i}. {label}")
+        else:
+            lines.append("—")
 
     # Avoid oversized telegram messages
     text = "\n".join(lines)
