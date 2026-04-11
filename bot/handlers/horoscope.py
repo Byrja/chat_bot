@@ -1,6 +1,6 @@
 import random
 
-from telegram import Update
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import ContextTypes
 
 from bot.config import Settings
@@ -35,10 +35,17 @@ async def horoscope(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
     s = _settings(context)
     b = get_birthdate(s.sqlite_path, update.effective_user.id)
+    issuer = None
+    if update.callback_query and update.callback_query.data:
+        parts = update.callback_query.data.split(":")
+        if len(parts) == 3 and parts[0] == "menu":
+            issuer = parts[2]
+    back = InlineKeyboardMarkup([[InlineKeyboardButton("⬅️ Назад", callback_data=f"menu:fun:{issuer}")]]) if issuer else None
+
     if not b:
         text = "Чтобы получить гороскоп, сначала укажи дату рождения в ⚙️ Настройки."
         if update.callback_query:
-            await update.callback_query.edit_message_text(text)
+            await update.callback_query.edit_message_text(text, reply_markup=back)
         else:
             await msg.reply_text(text)
         return
@@ -47,7 +54,7 @@ async def horoscope(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if not sign:
         text = "Не удалось определить знак зодиака. Проверь дату рождения в настройках."
         if update.callback_query:
-            await update.callback_query.edit_message_text(text)
+            await update.callback_query.edit_message_text(text, reply_markup=back)
         else:
             await msg.reply_text(text)
         return
@@ -66,6 +73,6 @@ async def horoscope(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
     final = f"🔮 Гороскоп на сегодня ({sign})\n───────────────────\n{text_out}"
     if update.callback_query:
-        await update.callback_query.edit_message_text(final)
+        await update.callback_query.edit_message_text(final, reply_markup=back)
     else:
         await msg.reply_text(final)

@@ -1,4 +1,4 @@
-from telegram import Update
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import ContextTypes
 
 from bot.config import Settings
@@ -19,7 +19,13 @@ async def days_without_drama(update: Update, context: ContextTypes.DEFAULT_TYPE)
     days = get_days_without_drama(s.sqlite_path, update.effective_chat.id)
     text = f"🕊 Дней без драмы: {days}"
     if update.callback_query:
-        await update.callback_query.edit_message_text(text)
+        issuer = None
+        if update.callback_query.data:
+            parts = update.callback_query.data.split(":")
+            if len(parts) == 3 and parts[0] == "menu":
+                issuer = parts[2]
+        back = InlineKeyboardMarkup([[InlineKeyboardButton("⬅️ Назад", callback_data=f"menu:home:{issuer}")]]) if issuer else None
+        await update.callback_query.edit_message_text(text, reply_markup=back)
     else:
         await msg.reply_text(text)
 

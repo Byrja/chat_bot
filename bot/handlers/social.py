@@ -50,7 +50,13 @@ async def friend_foe_stats(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         f"Минусов получено: {st['minus_count']}"
     )
     if update.callback_query:
-        await update.callback_query.edit_message_text(text)
+        issuer = None
+        if update.callback_query.data:
+            parts = update.callback_query.data.split(":")
+            if len(parts) == 3 and parts[0] == "menu":
+                issuer = parts[2]
+        back = InlineKeyboardMarkup([[InlineKeyboardButton("⬅️ Назад", callback_data=f"menu:social:{issuer}")]]) if issuer else None
+        await update.callback_query.edit_message_text(text, reply_markup=back)
     else:
         await msg.reply_text(text)
 
@@ -79,7 +85,13 @@ async def friend_foe_top(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 
     text = "\n".join(lines)
     if update.callback_query:
-        await update.callback_query.edit_message_text(text)
+        issuer = None
+        if update.callback_query.data:
+            parts = update.callback_query.data.split(":")
+            if len(parts) == 3 and parts[0] == "menu":
+                issuer = parts[2]
+        back = InlineKeyboardMarkup([[InlineKeyboardButton("⬅️ Назад", callback_data=f"menu:social:{issuer}")]]) if issuer else None
+        await update.callback_query.edit_message_text(text, reply_markup=back)
     else:
         await msg.reply_text(text)
 
