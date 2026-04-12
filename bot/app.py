@@ -47,6 +47,7 @@ from bot.commands import command_list
 from bot.handlers.start import health
 from bot.handlers.top_pairs import show_top_pairs
 from bot.handlers.top_week import show_top_week
+from bot.handlers.thread_debug import topic_id
 from bot.handlers.birthday_reminders import send_birthday_reminders
 from bot.handlers.bottle_mode import bottle_mode_action
 from bot.handlers.social import bottle_game, bottle_join_action, bottle_result_action, friend_foe_stats, friend_foe_top
@@ -123,6 +124,7 @@ def build_app(settings: Settings) -> Application:
     app.add_handler(CommandHandler("relations", relation_stats_cmd))
     app.add_handler(CommandHandler("bottle", bottle_game))
     app.add_handler(CommandHandler("about", about))
+    app.add_handler(CommandHandler("topicid", topic_id))
     app.add_handler(CommandHandler("menu", show_menu))
     app.add_handler(CommandHandler("horoscope", horoscope))
     app.add_handler(CommandHandler("mod", mod_panel))
