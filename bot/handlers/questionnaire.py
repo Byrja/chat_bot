@@ -220,18 +220,24 @@ async def preview_action(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
                     InlineKeyboardButton("❌ Отказать", callback_data=f"mod:reject:{app_id}"),
                 ]
             ])
+            admin_kwargs = {}
+            if s.admin_questionnaires_thread_id:
+                admin_kwargs["message_thread_id"] = s.admin_questionnaires_thread_id
+
             if photo_id:
                 await context.bot.send_photo(
                     chat_id=s.admin_chat_id,
                     photo=photo_id,
                     caption=text,
                     reply_markup=markup,
+                    **admin_kwargs,
                 )
             else:
                 await context.bot.send_message(
                     chat_id=s.admin_chat_id,
                     text=text,
                     reply_markup=markup,
+                    **admin_kwargs,
                 )
 
         await query.edit_message_text(
@@ -246,15 +252,19 @@ async def preview_action(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 WAIT_REJECT_REASON = 90
 
 
-async def _edit_moderation_message(query, text: str) -> None:
+async def _freeze_moderation_buttons(query) -> None:
+    try:
+        await query.edit_message_reply_markup(reply_markup=None)
+    except Exception:
+        pass
+
+
+async def _send_moderation_result(query, context: ContextTypes.DEFAULT_TYPE, text: str) -> None:
     msg = getattr(query, "message", None)
-    if msg and (getattr(msg, "photo", None) or getattr(msg, "caption", None)):
-        try:
-            await query.edit_message_caption(caption=text)
-            return
-        except Exception:
-            pass
-    await query.edit_message_text(text)
+    if msg:
+        await context.bot.send_message(chat_id=msg.chat_id, text=text, reply_to_message_id=msg.message_id)
+    else:
+        await query.message.reply_text(text)
 
 
 async def moderation_action(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int | None:
@@ -283,7 +293,7 @@ async def moderation_action(update: Update, context: ContextTypes.DEFAULT_TYPE) 
         if action == "approve":
             ok = set_decision(s.sqlite_path, app_id, "approved", update.effective_user.id)
             if not ok:
-                await _edit_moderation_message(query, "Заявка уже обработана или недоступна.")
+                await _send_moderation_result(query, context, "Заявка уже обработана или недоступна.")
                 return
             owner = get_application_for_admin(s.sqlite_path, app_id)
             if owner:
@@ -300,13 +310,16 @@ async def moderation_action(update: Update, context: ContextTypes.DEFAULT_TYPE) 
                     chat_id=owner_id,
                     text=f"Твоя заявка одобрена ✅\nВот ссылка в чат (одноразовая):\n{invite.invite_link}",
                 )
-            await _edit_moderation_message(query, f"Анкета #{app_id} одобрена ✅")
+            await _freeze_moderation_buttons(query)
+            await _send_moderation_result(query, context, f"Анкета #{app_id} одобрена ✅")
             return
 
         if action == "reject":
             context.user_data["reject_app_id"] = app_id
-            await _edit_moderation_message(
+            await _freeze_moderation_buttons(query)
+            await _send_moderation_result(
                 query,
+                context,
                 f"Анкета #{app_id}: укажи причину отказа текстом (или отправь '-' чтобы без причины).",
             )
             return WAIT_REJECT_REASON
