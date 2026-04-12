@@ -23,7 +23,7 @@ def _is_member(status: str) -> bool:
     return status in {"member", "administrator", "creator", "restricted"}
 
 
-def _latest_application_summary(db_path: str, tg_user_id: int) -> tuple[str, str]:
+def _latest_application_packet(db_path: str, tg_user_id: int) -> tuple[int, str, dict[str, str]] | None:
     conn = get_conn(db_path)
     cur = conn.cursor()
     cur.execute(
@@ -38,7 +38,7 @@ def _latest_application_summary(db_path: str, tg_user_id: int) -> tuple[str, str
     row = cur.fetchone()
     if not row:
         conn.close()
-        return ("нет", "Анкета не заполнена")
+        return None
 
     app_id, status = int(row[0]), str(row[1])
     cur.execute(
@@ -47,14 +47,7 @@ def _latest_application_summary(db_path: str, tg_user_id: int) -> tuple[str, str
     )
     answers = {str(r[0]): str(r[1]) for r in cur.fetchall()}
     conn.close()
-
-    name = answers.get("name", "—")
-    district = answers.get("district", "—")
-    age = answers.get("age", "—")
-    return (
-        status,
-        f"ID: {app_id}\nИмя: {name}\nРайон: {district}\nВозраст: {age}",
-    )
+    return (app_id, status, answers)
 
 
 async def member_status_event(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -80,7 +73,26 @@ async def member_status_event(update: Update, context: ContextTypes.DEFAULT_TYPE
         who = _display_name(user)
         await context.bot.send_message(chat_id=s.main_chat_id, text=f"👋 Добро пожаловать, {who}!")
 
-        status, summary = _latest_application_summary(s.sqlite_path, user.id)
+        packet = _latest_application_packet(s.sqlite_path, user.id)
+        kwargs = {}
+        if s.main_questionnaires_thread_id:
+            kwargs["message_thread_id"] = s.main_questionnaires_thread_id
+
+        if not packet:
+            await context.bot.send_message(
+                chat_id=s.main_chat_id,
+                text=(
+                    "🧾 Анкета участника\n"
+                    "───────────────────\n"
+                    f"Пользователь: {who} ({user.id})\n"
+                    "Анкета не заполнена\n\n"
+                    "Заполнить/обновить анкету: в личке бота /start"
+                ),
+                **kwargs,
+            )
+            return
+
+        app_id, status, answers = packet
         status_ru = {
             "draft": "черновик",
             "submitted": "на модерации",
@@ -90,15 +102,21 @@ async def member_status_event(update: Update, context: ContextTypes.DEFAULT_TYPE
         text = (
             "🧾 Анкета участника\n"
             "───────────────────\n"
-            f"Пользователь: {who} ({user.id})\n"
-            f"Статус анкеты: {status_ru}\n"
-            f"{summary}\n\n"
-            "Заполнить/обновить анкету: в личке бота /start"
+            f"Application ID: {app_id}\n"
+            f"User: {user.id} ({answers.get('tg_handle', '—')})\n"
+            f"Статус: {status_ru}\n"
+            f"Имя: {answers.get('name', '—')}\n"
+            f"Район: {answers.get('district', '—')}\n"
+            f"Возраст: {answers.get('age', '—')}\n"
+            f"Хобби: {answers.get('hobby', '—')}\n"
+            f"Алкоголь: {answers.get('alcohol', '—')}\n"
+            f"Свободное время: {answers.get('availability', '—')}"
         )
-        kwargs = {}
-        if s.main_questionnaires_thread_id:
-            kwargs["message_thread_id"] = s.main_questionnaires_thread_id
-        await context.bot.send_message(chat_id=s.main_chat_id, text=text, **kwargs)
+        photo_id = answers.get("photo_file_id")
+        if photo_id:
+            await context.bot.send_photo(chat_id=s.main_chat_id, photo=photo_id, caption=text, **kwargs)
+        else:
+            await context.bot.send_message(chat_id=s.main_chat_id, text=text, **kwargs)
         return
 
     if just_left:
