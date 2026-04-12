@@ -246,6 +246,17 @@ async def preview_action(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 WAIT_REJECT_REASON = 90
 
 
+async def _edit_moderation_message(query, text: str) -> None:
+    msg = getattr(query, "message", None)
+    if msg and (getattr(msg, "photo", None) or getattr(msg, "caption", None)):
+        try:
+            await query.edit_message_caption(caption=text)
+            return
+        except Exception:
+            pass
+    await query.edit_message_text(text)
+
+
 async def moderation_action(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int | None:
     query = update.callback_query
     if not query or not update.effective_user:
@@ -272,7 +283,7 @@ async def moderation_action(update: Update, context: ContextTypes.DEFAULT_TYPE) 
         if action == "approve":
             ok = set_decision(s.sqlite_path, app_id, "approved", update.effective_user.id)
             if not ok:
-                await query.edit_message_text("Заявка уже обработана или недоступна.")
+                await _edit_moderation_message(query, "Заявка уже обработана или недоступна.")
                 return
             owner = get_application_for_admin(s.sqlite_path, app_id)
             if owner:
@@ -289,13 +300,14 @@ async def moderation_action(update: Update, context: ContextTypes.DEFAULT_TYPE) 
                     chat_id=owner_id,
                     text=f"Твоя заявка одобрена ✅\nВот ссылка в чат (одноразовая):\n{invite.invite_link}",
                 )
-            await query.edit_message_text(f"Анкета #{app_id} одобрена ✅")
+            await _edit_moderation_message(query, f"Анкета #{app_id} одобрена ✅")
             return
 
         if action == "reject":
             context.user_data["reject_app_id"] = app_id
-            await query.edit_message_text(
-                f"Анкета #{app_id}: укажи причину отказа текстом (или отправь '-' чтобы без причины)."
+            await _edit_moderation_message(
+                query,
+                f"Анкета #{app_id}: укажи причину отказа текстом (или отправь '-' чтобы без причины).",
             )
             return WAIT_REJECT_REASON
     finally:
