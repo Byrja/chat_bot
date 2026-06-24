@@ -48,7 +48,7 @@ from bot.handlers.roles_list import roles_list
 from bot.commands import command_list
 from bot.handlers.start import health
 from bot.handlers.top_pairs import show_top_pairs
-from bot.handlers.top_week import show_top_week
+from bot.handlers.top_week import show_top_week, show_today_top
 from bot.handlers.thread_debug import topic_id
 from bot.handlers.birthday_reminders import send_birthday_reminders
 from bot.handlers.bottle_mode import bottle_mode_action
@@ -114,6 +114,7 @@ def build_app(settings: Settings) -> Application:
     app.add_handler(CommandHandler("activity", show_activity))
     app.add_handler(CommandHandler("top_pairs", show_top_pairs))
     app.add_handler(CommandHandler("top_week", show_top_week))
+    app.add_handler(CommandHandler("today_top", show_today_top))
     app.add_handler(CommandHandler("quote", save_quote))
     app.add_handler(CommandHandler("quotes", random_quote_cmd))
     app.add_handler(CommandHandler("randomquote", random_quote_cmd))

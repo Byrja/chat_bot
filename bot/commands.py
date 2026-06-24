@@ -7,6 +7,7 @@ def command_list() -> list[BotCommand]:
         BotCommand("start", "Заполнить анкету"),
         BotCommand("about", "Полный список команд"),
         BotCommand("activity", "Топ самых активных (всё время)"),
+        BotCommand("today_top", "Топ самых активных (за сутки)"),
         BotCommand("top_week", "Топ самых активных (7 дней)"),
         BotCommand("top_pairs", "Топ пар по reply"),
         BotCommand("karma", "Моя карма"),

@@ -264,6 +264,15 @@ async def menu_action(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
                 (s.main_chat_id, f"-{days} days"),
             )
         rows = cur.fetchall()
+
+        total = None
+        if action == "activity_day":
+            cur.execute(
+                "SELECT COUNT(*) FROM member_messages WHERE chat_id = ? AND datetime(created_at) >= datetime('now', '-1 day')",
+                (s.main_chat_id,),
+            )
+            total = cur.fetchone()[0]
+
         conn.close()
 
         if not rows:
@@ -277,6 +286,8 @@ async def menu_action(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
                     _uid, cnt, last_at, username, first_name = row
                 label = (first_name or username or "user")
                 lines.append(f"{i}. {label} — {cnt} | {last_at or '—'}")
+            if total is not None:
+                lines.append(f"\n💬 Всего сообщений за сутки: {total}")
             text = "\n".join(lines)
 
         await query.edit_message_text(text, reply_markup=_back_kb(issuer_id))
