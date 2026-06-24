@@ -319,6 +319,32 @@ async def warn_kick_confirm(update: Update, context: ContextTypes.DEFAULT_TYPE) 
         )
 
 
+async def warn_list_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    if not update.message or not update.effective_chat:
+        return
+    if not _can(update, context, "warn"):
+        await update.message.reply_text("Недостаточно прав")
+        return
+
+    s = _settings(context)
+    from bot.repositories.sanctions import list_warned
+
+    rows = list_warned(s.sqlite_path, update.effective_chat.id)
+    if not rows:
+        await update.message.reply_text("Предупреждений пока нет.")
+        return
+
+    lines = ["⚠️ Список осужденных", "───────────────────"]
+    for uid, username, first_name, cnt in rows:
+        label = (first_name or username or str(uid)).replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+        if username:
+            lines.append(f"• @{username} — {cnt} пред.")
+        else:
+            lines.append(f'• <a href="tg://user?id={uid}">{label}</a> — {cnt} пред.')
+
+    await update.message.reply_text("\n".join(lines), parse_mode="HTML", disable_web_page_preview=True)
+
+
 async def all_members(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     try:
         if not update.message or not update.effective_chat:

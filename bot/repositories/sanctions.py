@@ -60,6 +60,25 @@ def count_warns(db_path: str, target_tg_user_id: int) -> int:
     return row[0] if row else 0
 
 
+def list_warned(db_path: str, chat_id: int) -> list[tuple[int, str | None, str | None, int]]:
+    conn = get_conn(db_path)
+    cur = conn.cursor()
+    cur.execute(
+        """
+        SELECT s.target_tg_user_id, COALESCE(ma.username, ''), COALESCE(ma.first_name, ''), COUNT(*) as warn_count
+        FROM sanctions s
+        LEFT JOIN member_activity ma ON ma.chat_id = ? AND ma.tg_user_id = s.target_tg_user_id
+        WHERE s.action = 'warn'
+        GROUP BY s.target_tg_user_id
+        ORDER BY warn_count DESC, s.target_tg_user_id
+        """,
+        (chat_id,),
+    )
+    rows = cur.fetchall()
+    conn.close()
+    return [(int(r[0]), r[1] or None, r[2] or None, int(r[3])) for r in rows]
+
+
 def remove_last_warn(db_path: str, target_tg_user_id: int) -> bool:
     conn = get_conn(db_path)
     cur = conn.cursor()

@@ -29,7 +29,7 @@ def _menu_kb(update: Update, context: ContextTypes.DEFAULT_TYPE, issuer_id: int)
     rows = [
         [
             InlineKeyboardButton("📊 Профиль", callback_data=f"menu:stats:{issuer_id}"),
-            InlineKeyboardButton("🔥 Ноулайферы", callback_data=f"menu:activity:{issuer_id}"),
+            InlineKeyboardButton("🔥 Самые активные", callback_data=f"menu:activity:{issuer_id}"),
         ],
         [InlineKeyboardButton("💬 Топ пар", callback_data=f"menu:pairs:{issuer_id}")],
         [InlineKeyboardButton("📣 Хипиш", callback_data=f"menu:fun_hipish:{issuer_id}"), InlineKeyboardButton("💥 Дни без драмы", callback_data=f"menu:drama_days:{issuer_id}")],
@@ -205,7 +205,7 @@ async def menu_action(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
         if not rows:
             text = "Пока нет данных за последние 7 дней."
         else:
-            lines = ["📆 Топ ноулайферов (7 дней)", "───────────────────"]
+            lines = ["📆 Топ самых активных (7 дней)", "───────────────────"]
             for i, (uid2, cnt, last_at, username, first_name) in enumerate(rows, 1):
                 label = (first_name or username or str(uid2))
                 lines.append(f"{i}. {label} — {cnt} | {last_at or '—'}")
@@ -216,7 +216,7 @@ async def menu_action(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
 
     if action == "activity":
         await query.edit_message_text(
-            "🔥 Ноулайферы\nВыбери период:",
+            "🔥 Самые активные\nВыбери период:",
             reply_markup=InlineKeyboardMarkup([
                 [InlineKeyboardButton("За всё время", callback_data=f"menu:activity_all:{issuer_id}")],
                 [InlineKeyboardButton("За сутки", callback_data=f"menu:activity_day:{issuer_id}")],
@@ -241,10 +241,10 @@ async def menu_action(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
                 """,
                 (s.main_chat_id,),
             )
-            title = "🔥 Топ ноулайферов (всё время)"
+            title = "🔥 Топ самых активных (всё время)"
         else:
             days = 1 if action == "activity_day" else 7 if action == "activity_week" else 30
-            title = "🔥 Топ ноулайферов (сутки)" if days == 1 else "🔥 Топ ноулайферов (неделя)" if days == 7 else "🔥 Топ ноулайферов (месяц)"
+            title = "🔥 Топ самых активных (сутки)" if days == 1 else "🔥 Топ самых активных (неделя)" if days == 7 else "🔥 Топ самых активных (месяц)"
             cur.execute(
                 """
                 SELECT mm.tg_user_id,
@@ -588,10 +588,14 @@ async def menu_action(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
             "Команды (reply на пользователя):\n"
             "/mod — кнопочная панель\n"
             "/warn причина\n"
+            "/unwarn\n"
+            "/warnlist\n"
             "/mute 30 причина\n"
             "/ban причина",
             reply_markup=InlineKeyboardMarkup([
                 [InlineKeyboardButton("👥 Статусы участников", callback_data=f"menu:mod_roles:{issuer_id}")],
+                [InlineKeyboardButton("📋 Список осужденных", callback_data=f"menu:mod_warnlist:{issuer_id}")],
+                [InlineKeyboardButton("📚 Список цитат", callback_data=f"menu:mod_quoteslist:{issuer_id}")],
                 [InlineKeyboardButton("⬅️ Назад", callback_data=f"menu:home:{issuer_id}")],
             ]),
         )
@@ -650,6 +654,53 @@ async def menu_action(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
         await query.edit_message_text(
             "\n".join(lines),
             reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("⬅️ Назад", callback_data=f"menu:mod:{issuer_id}")]]),
+        )
+        return
+
+    if action == "mod_warnlist":
+        if not has_permission(s, s.sqlite_path, uid, "warn"):
+            await query.edit_message_text("Недостаточно прав", reply_markup=_back_kb(issuer_id))
+            return
+        from bot.repositories.sanctions import list_warned
+        rows = list_warned(s.sqlite_path, s.main_chat_id)
+        if not rows:
+            await query.edit_message_text(
+                "Предупреждений пока нет.",
+                reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("⬅️ Назад", callback_data=f"menu:mod:{issuer_id}")]]),
+            )
+            return
+        lines = ["⚠️ Список осужденных", "───────────────────"]
+        for uid2, username, first_name, cnt in rows:
+            if username:
+                lines.append(f"• @{username} — {cnt} пред.")
+            else:
+                label = (first_name or str(uid2)).replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+                lines.append(f'• <a href="tg://user?id={uid2}">{label}</a> — {cnt} пред.')
+        await query.edit_message_text(
+            "\n".join(lines),
+            parse_mode="HTML",
+            disable_web_page_preview=True,
+            reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("⬅️ Назад", callback_data=f"menu:mod:{issuer_id}")]]),
+        )
+        return
+
+    if action == "mod_quoteslist":
+        if not has_permission(s, s.sqlite_path, uid, "warn"):
+            await query.edit_message_text("Недостаточно прав", reply_markup=_back_kb(issuer_id))
+            return
+        from bot.handlers.quotes import _build_list_markup
+        from bot.repositories.quotes import list_quotes
+        rows = list_quotes(s.sqlite_path, s.main_chat_id, limit=20)
+        if not rows:
+            await query.edit_message_text(
+                "Цитат пока нет",
+                reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("⬅️ Назад", callback_data=f"menu:mod:{issuer_id}")]]),
+            )
+            return
+        markup = _build_list_markup(rows, page=0)
+        await query.edit_message_text(
+            "📋 Список цитат (нажми для просмотра):",
+            reply_markup=markup,
         )
         return
 

@@ -35,7 +35,7 @@ from bot.handlers.mod_panel import mod_panel, mod_quick_action, mod_quick_ask_re
 from bot.handlers.profile_input import capture_birthdate_input
 from bot.handlers.questionnaire_lookup import questionnaire_lookup
 from bot.handlers.quotes import latest_quote_cmd, quotes_delete_callback, quotes_list_cmd, quotes_page_callback, quotes_view_callback, random_quote_cmd, save_quote
-from bot.handlers.admin_sanctions import all_members, ban_user, mute_user, unmute_user, unwarn_user, warn_kick_confirm, warn_user
+from bot.handlers.admin_sanctions import all_members, ban_user, mute_user, unmute_user, unwarn_user, warn_kick_confirm, warn_list_cmd, warn_user
 from bot.handlers.admin_stats import admin_stats
 from bot.handlers.errors import on_error
 from bot.handlers.drama import days_without_drama, drama_reset
@@ -102,6 +102,7 @@ def build_app(settings: Settings) -> Application:
     app.add_handler(mod_flow)
     app.add_handler(CommandHandler("warn", warn_user))
     app.add_handler(CommandHandler("unwarn", unwarn_user))
+    app.add_handler(CommandHandler("warnlist", warn_list_cmd))
     app.add_handler(CommandHandler("mute", mute_user))
     app.add_handler(CommandHandler("unmute", unmute_user))
     app.add_handler(CommandHandler("ban", ban_user))
@@ -138,7 +139,7 @@ def build_app(settings: Settings) -> Application:
     app.add_handler(CommandHandler("menu", show_menu))
     app.add_handler(CommandHandler("horoscope", horoscope))
     app.add_handler(CommandHandler("mod", mod_panel))
-    app.add_handler(CallbackQueryHandler(menu_action, pattern=r"^menu:(home|stats|activity|activity_all|activity_day|activity_week|activity_month|pairs|pairs_all|pairs_week|drama_days|fun|social|social_ff_stats|social_ff_top|social_karma_me|social_karma_top|social_relation_help|fun_bottle|fun_horoscope|fun_quote_random|fun_quote_latest|fun_hipish|fun_hipish_do|mod|mod_roles|settings|settings_muteme15|settings_bday|settings_bday_clear|settings_editform|settings_kick_confirm|settings_kick_do):[0-9]+$"))
+    app.add_handler(CallbackQueryHandler(menu_action, pattern=r"^menu:(home|stats|activity|activity_all|activity_day|activity_week|activity_month|pairs|pairs_all|pairs_week|drama_days|fun|social|social_ff_stats|social_ff_top|social_karma_me|social_karma_top|social_relation_help|fun_bottle|fun_horoscope|fun_quote_random|fun_quote_latest|fun_hipish|fun_hipish_do|mod|mod_roles|mod_warnlist|mod_quoteslist|settings|settings_muteme15|settings_bday|settings_bday_clear|settings_editform|settings_kick_confirm|settings_kick_do):[0-9]+$"))
     app.add_handler(CallbackQueryHandler(mod_quick_ask_reason, pattern=r"^modquickask:(warn|mute30|ban):[0-9]+:[0-9]+$"))
     app.add_handler(CallbackQueryHandler(mod_quick_action, pattern=r"^modquick:(warn|mute30|ban):[0-9]+:[0-9]+:(spam|abuse|offtopic|other)$"))
     app.add_handler(CallbackQueryHandler(relation_action, pattern=r"^rel:(friend_offer|goat):[0-9]+:[0-9]+$"))
