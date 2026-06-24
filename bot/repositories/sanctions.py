@@ -60,6 +60,35 @@ def count_warns(db_path: str, target_tg_user_id: int) -> int:
     return row[0] if row else 0
 
 
+def remove_warn_by_id(db_path: str, sanction_id: int, target_tg_user_id: int) -> bool:
+    conn = get_conn(db_path)
+    cur = conn.cursor()
+    cur.execute(
+        "DELETE FROM sanctions WHERE id = ? AND target_tg_user_id = ? AND action = 'warn'",
+        (sanction_id, target_tg_user_id),
+    )
+    deleted = cur.rowcount > 0
+    conn.commit()
+    conn.close()
+    return deleted
+
+
+def list_warns_for_user(db_path: str, target_tg_user_id: int) -> list[tuple[int, str | None, str]]:
+    conn = get_conn(db_path)
+    cur = conn.cursor()
+    cur.execute(
+        """
+        SELECT id, reason, created_at FROM sanctions
+        WHERE target_tg_user_id = ? AND action = 'warn'
+        ORDER BY id DESC
+        """,
+        (target_tg_user_id,),
+    )
+    rows = cur.fetchall()
+    conn.close()
+    return [(int(r[0]), r[1], r[2]) for r in rows]
+
+
 def list_warned(db_path: str, chat_id: int) -> list[tuple[int, str | None, str | None, int]]:
     conn = get_conn(db_path)
     cur = conn.cursor()

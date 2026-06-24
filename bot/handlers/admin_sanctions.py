@@ -2,7 +2,7 @@ from telegram import ChatPermissions, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes
 
 from bot.config import Settings
-from bot.repositories.sanctions import add_sanction, count_warns, remove_last_warn
+from bot.repositories.sanctions import add_sanction, count_warns, list_warns_for_user, remove_warn_by_id
 from bot.services.rbac import has_permission
 from bot.services.timeparse import parse_mute_duration
 
@@ -168,7 +168,6 @@ async def warn_user(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         target = update.message.reply_to_message.from_user
     elif context.args:
         mention = context.args[0].strip()
-        # Не можем резолвить @username без extra API call; требуем reply
         if mention.startswith("@"):
             await update.message.reply_text(
                 "Для /warn используй ответ на сообщение пользователя. "
@@ -251,11 +250,55 @@ async def unwarn_user(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
         return
 
     s = _settings(context)
-    ok = remove_last_warn(s.sqlite_path, target.id)
-    if ok:
-        await update.message.reply_text(f"✅ Последнее предупреждение снято с пользователя {target.id}")
-    else:
+    warns = list_warns_for_user(s.sqlite_path, target.id)
+    if not warns:
         await update.message.reply_text(f"У пользователя {target.id} нет предупреждений")
+        return
+
+    lines = [f"⚠️ Предупреждения пользователя {target.id}:", "───────────────────"]
+    buttons = []
+    for wid, reason, created_at in warns:
+        reason_text = f"Причина: {reason}" if reason else "Без причины"
+        lines.append(f"• #{wid} | {created_at} | {reason_text}")
+        buttons.append([InlineKeyboardButton(
+            f"🗑 Снять #{wid}",
+            callback_data=f"unwarn_del_{wid}_{target.id}"
+        )])
+
+    markup = InlineKeyboardMarkup(buttons)
+    await update.message.reply_text("\n".join(lines), reply_markup=markup)
+
+
+async def unwarn_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    query = update.callback_query
+    if not query or not update.effective_user:
+        await query.answer() if query else None
+        return
+    await query.answer()
+
+    if not _can(update, context, "warn"):
+        await query.answer("Недостаточно прав", show_alert=True)
+        return
+
+    data = query.data or ""
+    if not data.startswith("unwarn_del_"):
+        return
+
+    parts = data.split("_")
+    if len(parts) != 4:
+        return
+    try:
+        sanction_id = int(parts[2])
+        target_id = int(parts[3])
+    except ValueError:
+        return
+
+    s = _settings(context)
+    ok = remove_warn_by_id(s.sqlite_path, sanction_id, target_id)
+    if ok:
+        await query.edit_message_text(f"✅ Предупреждение #{sanction_id} снято с пользователя {target_id}")
+    else:
+        await query.edit_message_text(f"Не удалось снять предупреждение #{sanction_id}. Возможно, оно уже удалено.")
 
 
 async def warn_kick_confirm(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -338,9 +381,13 @@ async def warn_list_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
     for uid, username, first_name, cnt in rows:
         label = (first_name or username or str(uid)).replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
         if username:
-            lines.append(f"• @{username} — {cnt} пред.")
+            lines.append(f"\n• @{username} — {cnt} пред.")
         else:
-            lines.append(f'• <a href="tg://user?id={uid}">{label}</a> — {cnt} пред.')
+            lines.append(f'\n• <a href="tg://user?id={uid}">{label}</a> — {cnt} пред.')
+        warns = list_warns_for_user(s.sqlite_path, uid)
+        for wid, reason, created_at in warns:
+            reason_text = f"Причина: {reason}" if reason else "Без причины"
+            lines.append(f"  #{wid} | {created_at} | {reason_text}")
 
     await update.message.reply_text("\n".join(lines), parse_mode="HTML", disable_web_page_preview=True)
 
@@ -373,7 +420,6 @@ async def all_members(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
             await update.message.reply_text("Не найдено участников для упоминания.")
             return
 
-        # Telegram limit ~4096 chars; split into chunks
         chunk_size = 50
         for i in range(0, len(mentions), chunk_size):
             chunk = mentions[i:i + chunk_size]

@@ -35,7 +35,7 @@ from bot.handlers.mod_panel import mod_panel, mod_quick_action, mod_quick_ask_re
 from bot.handlers.profile_input import capture_birthdate_input
 from bot.handlers.questionnaire_lookup import questionnaire_lookup
 from bot.handlers.quotes import latest_quote_cmd, quotes_delete_callback, quotes_list_cmd, quotes_page_callback, quotes_view_callback, random_quote_cmd, save_quote
-from bot.handlers.admin_sanctions import all_members, ban_user, mute_user, unmute_user, unwarn_user, warn_kick_confirm, warn_list_cmd, warn_user
+from bot.handlers.admin_sanctions import all_members, ban_user, mute_user, unmute_user, unwarn_user, unwarn_callback, warn_kick_confirm, warn_list_cmd, warn_user
 from bot.handlers.admin_stats import admin_stats
 from bot.handlers.errors import on_error
 from bot.handlers.drama import days_without_drama, drama_reset
@@ -123,6 +123,7 @@ def build_app(settings: Settings) -> Application:
     app.add_handler(CallbackQueryHandler(quotes_view_callback, pattern=r"^quote_view_[0-9]+_[0-9]+$"))
     app.add_handler(CallbackQueryHandler(quotes_delete_callback, pattern=r"^quote_del_[0-9]+$"))
     app.add_handler(CallbackQueryHandler(warn_kick_confirm, pattern=r"^warnkick_(yes|no)_[0-9]+$"))
+    app.add_handler(CallbackQueryHandler(unwarn_callback, pattern=r"^unwarn_del_[0-9]+_[0-9]+$"))
     app.add_handler(CommandHandler("days_without_drama", days_without_drama))
     app.add_handler(CommandHandler("drama", drama_reset))
     app.add_handler(CommandHandler("plus", karma_plus))
