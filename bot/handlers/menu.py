@@ -661,7 +661,7 @@ async def menu_action(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
         if not has_permission(s, s.sqlite_path, uid, "warn"):
             await query.edit_message_text("Недостаточно прав", reply_markup=_back_kb(issuer_id))
             return
-        from bot.repositories.sanctions import list_warned
+        from bot.repositories.sanctions import list_warned, list_warns_for_user
         rows = list_warned(s.sqlite_path, s.main_chat_id)
         if not rows:
             await query.edit_message_text(
@@ -671,11 +671,15 @@ async def menu_action(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
             return
         lines = ["⚠️ Список осужденных", "───────────────────"]
         for uid2, username, first_name, cnt in rows:
+            label = (first_name or username or str(uid2)).replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
             if username:
-                lines.append(f"• @{username} — {cnt} пред.")
+                lines.append(f"\n• @{username} — {cnt} пред.")
             else:
-                label = (first_name or str(uid2)).replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
-                lines.append(f'• <a href="tg://user?id={uid2}">{label}</a> — {cnt} пред.')
+                lines.append(f'\n• <a href="tg://user?id={uid2}">{label}</a> — {cnt} пред.')
+            warns = list_warns_for_user(s.sqlite_path, uid2)
+            for wid, reason, created_at in warns:
+                reason_text = f"Причина: {reason}" if reason else "Без причины"
+                lines.append(f"  #{wid} | {created_at} | {reason_text}")
         await query.edit_message_text(
             "\n".join(lines),
             parse_mode="HTML",
