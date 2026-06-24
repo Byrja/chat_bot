@@ -13,6 +13,7 @@ from bot.handlers.questionnaire import (
     WAIT_PHOTO,
     WAIT_PREVIEW,
     WAIT_REJECT_REASON,
+    WAIT_REJECT_CONFIRM,
     moderation_action,
     preview_action,
     questionnaire_cancel,
@@ -24,6 +25,7 @@ from bot.handlers.questionnaire import (
     receive_name,
     receive_photo,
     receive_reject_reason,
+    reject_confirm_action,
 )
 from bot.handlers.about import about
 from bot.handlers.activity import show_activity, track_message_activity
@@ -32,8 +34,8 @@ from bot.handlers.menu import menu_action, show_menu
 from bot.handlers.mod_panel import mod_panel, mod_quick_action, mod_quick_ask_reason
 from bot.handlers.profile_input import capture_birthdate_input
 from bot.handlers.questionnaire_lookup import questionnaire_lookup
-from bot.handlers.quotes import latest_quote_cmd, random_quote_cmd, save_quote
-from bot.handlers.admin_sanctions import ban_user, mute_user, unmute_user, warn_user
+from bot.handlers.quotes import latest_quote_cmd, quotes_delete_callback, quotes_list_cmd, quotes_page_callback, quotes_view_callback, random_quote_cmd, save_quote
+from bot.handlers.admin_sanctions import all_members, ban_user, mute_user, unmute_user, unwarn_user, warn_kick_confirm, warn_user
 from bot.handlers.admin_stats import admin_stats
 from bot.handlers.errors import on_error
 from bot.handlers.drama import days_without_drama, drama_reset
@@ -92,15 +94,18 @@ def build_app(settings: Settings) -> Application:
         entry_points=[CallbackQueryHandler(moderation_action, pattern=r"^mod:(approve|reject):[0-9]+$")],
         states={
             WAIT_REJECT_REASON: [MessageHandler(filters.TEXT & ~filters.COMMAND, receive_reject_reason)],
+            WAIT_REJECT_CONFIRM: [CallbackQueryHandler(reject_confirm_action, pattern=r"^mod:reject_(send|edit|cancel):[0-9]+$")],
         },
         fallbacks=[CommandHandler("cancel", questionnaire_cancel)],
         allow_reentry=True,
     )
     app.add_handler(mod_flow)
     app.add_handler(CommandHandler("warn", warn_user))
+    app.add_handler(CommandHandler("unwarn", unwarn_user))
     app.add_handler(CommandHandler("mute", mute_user))
     app.add_handler(CommandHandler("unmute", unmute_user))
     app.add_handler(CommandHandler("ban", ban_user))
+    app.add_handler(CommandHandler("all", all_members))
     app.add_handler(CommandHandler("admin_stats", admin_stats))
     app.add_handler(CommandHandler("role", set_role_command))
     app.add_handler(CommandHandler("roles", roles_list))
@@ -112,6 +117,11 @@ def build_app(settings: Settings) -> Application:
     app.add_handler(CommandHandler("quotes", random_quote_cmd))
     app.add_handler(CommandHandler("randomquote", random_quote_cmd))
     app.add_handler(CommandHandler("latest_quote", latest_quote_cmd))
+    app.add_handler(CommandHandler("quoteslist", quotes_list_cmd))
+    app.add_handler(CallbackQueryHandler(quotes_page_callback, pattern=r"^quote_page_[0-9]+$"))
+    app.add_handler(CallbackQueryHandler(quotes_view_callback, pattern=r"^quote_view_[0-9]+_[0-9]+$"))
+    app.add_handler(CallbackQueryHandler(quotes_delete_callback, pattern=r"^quote_del_[0-9]+$"))
+    app.add_handler(CallbackQueryHandler(warn_kick_confirm, pattern=r"^warnkick_(yes|no)_[0-9]+$"))
     app.add_handler(CommandHandler("days_without_drama", days_without_drama))
     app.add_handler(CommandHandler("drama", drama_reset))
     app.add_handler(CommandHandler("plus", karma_plus))

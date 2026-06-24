@@ -46,3 +46,37 @@ def add_sanction(
     conn.commit()
     conn.close()
     return sanction_id
+
+
+def count_warns(db_path: str, target_tg_user_id: int) -> int:
+    conn = get_conn(db_path)
+    cur = conn.cursor()
+    cur.execute(
+        "SELECT COUNT(*) FROM sanctions WHERE target_tg_user_id = ? AND action = 'warn'",
+        (target_tg_user_id,),
+    )
+    row = cur.fetchone()
+    conn.close()
+    return row[0] if row else 0
+
+
+def remove_last_warn(db_path: str, target_tg_user_id: int) -> bool:
+    conn = get_conn(db_path)
+    cur = conn.cursor()
+    cur.execute(
+        """
+        SELECT id FROM sanctions
+        WHERE target_tg_user_id = ? AND action = 'warn'
+        ORDER BY id DESC LIMIT 1
+        """,
+        (target_tg_user_id,),
+    )
+    row = cur.fetchone()
+    if not row:
+        conn.close()
+        return False
+    warn_id = row[0]
+    cur.execute("DELETE FROM sanctions WHERE id = ?", (warn_id,))
+    conn.commit()
+    conn.close()
+    return True

@@ -64,7 +64,7 @@ async def show_activity(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
         await update.message.reply_text("Пока нет данных по активности (счётчик начался после деплоя).")
         return
 
-    lines = ["🔥 Топ ноулайферов (по сообщениям)", "───────────────────"]
+    lines = ["🔥 Топ самых активных (по сообщениям)", "───────────────────"]
     for i, (uid, username, first_name, cnt, last_at) in enumerate(rows, 1):
         label = first_name or username or str(uid)
         lines.append(f"{i}. {label} — {cnt} сообщений | последнее: {last_at or '—'}")

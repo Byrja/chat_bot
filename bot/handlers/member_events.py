@@ -15,6 +15,17 @@ def _display_name(user) -> str:
     return user.first_name or (f"@{user.username}" if user.username else str(user.id))
 
 
+def _tg_handle(user_id: int | str | None, username: str | None = None, saved: str | None = None) -> str:
+    if username:
+        return f"@{username}"
+    saved = (saved or "").strip()
+    if saved.startswith("@"):
+        return saved
+    if saved and user_id is not None and saved != str(user_id):
+        return saved
+    return "—"
+
+
 def _was_member(status: str) -> bool:
     return status in {"member", "administrator", "creator", "restricted"}
 
@@ -99,11 +110,12 @@ async def member_status_event(update: Update, context: ContextTypes.DEFAULT_TYPE
             "approved": "одобрена",
             "rejected": "отклонена",
         }.get(status, status)
+        tg = _tg_handle(user.id, user.username, answers.get("tg_handle"))
         text = (
             "🧾 Анкета участника\n"
             "───────────────────\n"
             f"Application ID: {app_id}\n"
-            f"User: {user.id} ({answers.get('tg_handle', '—')})\n"
+            f"User: {tg} ({user.id})\n"
             f"Статус: {status_ru}\n"
             f"Имя: {answers.get('name', '—')}\n"
             f"Район: {answers.get('district', '—')}\n"

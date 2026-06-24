@@ -34,6 +34,6 @@ async def receive_alcohol_choice(update: Update, context: ContextTypes.DEFAULT_T
 
     await query.edit_message_text("Принято ✅")
     await query.message.reply_text(
-        "Вопрос 6/8: Как часто у тебя есть свободное время и сможешь ли посещать наши сходки?"
+        "Вопрос 6/7: Как часто у тебя есть свободное время и сможешь ли посещать наши сходки?"
     )
     return WAIT_AVAILABILITY

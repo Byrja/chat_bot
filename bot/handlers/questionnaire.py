@@ -21,6 +21,18 @@ def _settings(context: ContextTypes.DEFAULT_TYPE) -> Settings:
     return context.application.bot_data.get("settings") or context.application.settings
 
 
+def _tg_handle(user_id: int | str | None, username: str | None = None, saved: str | None = None) -> str:
+    """Return a human Telegram handle; never echo numeric id as a fake handle."""
+    if username:
+        return f"@{username}"
+    saved = (saved or "").strip()
+    if saved.startswith("@"):
+        return saved
+    if saved and user_id is not None and saved != str(user_id):
+        return saved
+    return "—"
+
+
 async def questionnaire_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     if not update.message or not update.effective_user or not update.effective_chat:
         return ConversationHandler.END
@@ -39,7 +51,7 @@ async def questionnaire_start(update: Update, context: ContextTypes.DEFAULT_TYPE
     app_id = get_or_create_draft_application(s.sqlite_path, user.id)
     context.user_data["application_id"] = app_id
 
-    await update.message.reply_text("Анкета МДЧ\nВопрос 1/8: Как тебя зовут?")
+    await update.message.reply_text("Анкета МДЧ\nВопрос 1/7: Как тебя зовут?")
     return WAIT_NAME
 
 
@@ -54,7 +66,7 @@ async def receive_name(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
     s = _settings(context)
     app_id = int(context.user_data["application_id"])
     save_answer(s.sqlite_path, app_id, "name", text, 1)
-    await update.message.reply_text("Вопрос 2/8: Расскажи, где живешь? (район проживания) 🏠")
+    await update.message.reply_text("Вопрос 2/7: Расскажи, где живешь? (район проживания) 🏠")
     return WAIT_DISTRICT
 
 
@@ -69,7 +81,7 @@ async def receive_district(update: Update, context: ContextTypes.DEFAULT_TYPE) -
     s = _settings(context)
     app_id = int(context.user_data["application_id"])
     save_answer(s.sqlite_path, app_id, "district", text, 3)
-    await update.message.reply_text("Вопрос 3/8: Сколько тебе лет? 🔞")
+    await update.message.reply_text("Вопрос 3/7: Сколько тебе лет? 🔞")
     return WAIT_AGE
 
 
@@ -85,7 +97,7 @@ async def receive_age(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
     app_id = int(context.user_data["application_id"])
     save_answer(s.sqlite_path, app_id, "age", str(age), 4)
     await update.message.reply_text(
-        "Вопрос 4/8: Поделись, чем занимаешься в свободное время, может у тебя есть мегакрутое хобби и у тебя найдутся приятели по интересам? 🧬"
+        "Вопрос 4/7: Поделись, чем занимаешься в свободное время, может у тебя есть мегакрутое хобби и у тебя найдутся приятели по интересам? 🧬"
     )
     return WAIT_HOBBY
 
@@ -103,11 +115,11 @@ async def receive_hobby(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
     save_answer(s.sqlite_path, app_id, "hobby", text, 5)
 
     if update.effective_user:
-        handle = f"@{update.effective_user.username}" if update.effective_user.username else str(update.effective_user.id)
+        handle = _tg_handle(update.effective_user.id, update.effective_user.username)
         save_answer(s.sqlite_path, app_id, "tg_handle", handle, 2)
 
     await update.message.reply_text(
-        "Вопрос 5/8: Как относишься к алкоголю? 🍺",
+        "Вопрос 5/7: Как относишься к алкоголю? 🍺",
         reply_markup=InlineKeyboardMarkup([
             [
                 InlineKeyboardButton("Да", callback_data="alc:yes"),
@@ -130,7 +142,7 @@ async def receive_availability(update: Update, context: ContextTypes.DEFAULT_TYP
     s = _settings(context)
     app_id = int(context.user_data["application_id"])
     save_answer(s.sqlite_path, app_id, "availability", text, 7)
-    await update.message.reply_text("Вопрос 7/8: Прикрепи фотографию, чтобы мы знали, с кем нам предстоит дружить!")
+    await update.message.reply_text("Вопрос 7/7: Прикрепи фотографию, чтобы мы знали, с кем нам предстоит дружить!")
     return WAIT_PHOTO
 
 
@@ -147,11 +159,12 @@ async def receive_photo(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
     save_answer(s.sqlite_path, app_id, "photo_file_id", photo.file_id, 8)
 
     answers = get_answers_map(s.sqlite_path, app_id)
+    tg = _tg_handle(update.effective_user.id if update.effective_user else None, update.effective_user.username if update.effective_user else None, answers.get("tg_handle"))
     preview = (
         "🧾 Предпросмотр анкеты\n"
         "───────────────────\n"
         f"Имя: {answers.get('name', '—')}\n"
-        f"TG: {answers.get('tg_handle', '—')}\n"
+        f"TG: {tg}\n"
         f"Район: {answers.get('district', '—')}\n"
         f"Возраст: {answers.get('age', '—')}\n"
         f"Хобби: {answers.get('hobby', '—')}\n"
@@ -201,11 +214,12 @@ async def preview_action(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         packet = get_application_for_admin(s.sqlite_path, app_id)
         if packet:
             owner_id, answers = packet
+            tg = _tg_handle(owner_id, update.effective_user.username if update.effective_user else None, answers.get("tg_handle"))
             text = (
                 "🆕 Новая анкета МДЧ\n"
                 "───────────────────\n"
                 f"Application ID: {app_id}\n"
-                f"User: {owner_id} ({answers.get('tg_handle', '—')})\n"
+                f"User: {tg} ({owner_id})\n"
                 f"Имя: {answers.get('name', '—')}\n"
                 f"Район: {answers.get('district', '—')}\n"
                 f"Возраст: {answers.get('age', '—')}\n"
@@ -250,6 +264,7 @@ async def preview_action(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 
 
 WAIT_REJECT_REASON = 90
+WAIT_REJECT_CONFIRM = 91
 
 
 async def _freeze_moderation_buttons(query) -> None:
@@ -274,8 +289,10 @@ async def moderation_action(update: Update, context: ContextTypes.DEFAULT_TYPE) 
     await query.answer()
 
     s = _settings(context)
-    if update.effective_user.id not in s.admin_user_ids:
-        await query.answer("Недостаточно прав", show_alert=True)
+    # Анкета отправляется в admin_chat; модерация доступна ЛЮБОМУ участнику этого чата.
+    msg_chat_id = getattr(getattr(query, "message", None), "chat_id", None)
+    if s.admin_chat_id and msg_chat_id != s.admin_chat_id:
+        await query.answer("Кнопки доступны только в админском чате", show_alert=True)
         return
 
     parts = (query.data or "").split(":")
@@ -332,8 +349,9 @@ async def receive_reject_reason(update: Update, context: ContextTypes.DEFAULT_TY
         return ConversationHandler.END
 
     s = _settings(context)
-    if update.effective_user.id not in s.admin_user_ids:
-        await update.message.reply_text("Недостаточно прав")
+    # Причину отказа принимаем только из admin_chat; отдельные роли не проверяем.
+    if s.admin_chat_id and update.effective_chat and update.effective_chat.id != s.admin_chat_id:
+        await update.message.reply_text("Причину отказа можно указать только в админском чате")
         return ConversationHandler.END
 
     app_id = int(context.user_data.get("reject_app_id", 0) or 0)
@@ -344,21 +362,110 @@ async def receive_reject_reason(update: Update, context: ContextTypes.DEFAULT_TY
     reason_raw = (update.message.text or "").strip()
     reason = None if reason_raw in {"", "-", "нет", "без причины"} else reason_raw[:500]
 
-    ok = set_decision(s.sqlite_path, app_id, "rejected", update.effective_user.id, reject_reason=reason)
-    if not ok:
-        await update.message.reply_text("Заявка уже обработана или недоступна.")
+    # Сохраняем причину во временное хранилище и просим подтвердить, а не шлём сразу.
+    context.user_data["reject_pending_reason"] = reason
+    context.user_data["reject_pending_app_id"] = app_id
+
+    if reason:
+        preview_text = (
+            f"Анкета #{app_id}: подтверди отказ.\n\n"
+            f"Причина, которая уйдёт заявителю:\n{reason}"
+        )
+    else:
+        preview_text = f"Анкета #{app_id}: подтверди отказ.\n\nПричина не указана."
+
+    await update.message.reply_text(
+        preview_text,
+        reply_markup=InlineKeyboardMarkup([
+            [
+                InlineKeyboardButton("✅ Отправить отказ", callback_data=f"mod:reject_send:{app_id}"),
+                InlineKeyboardButton("✏️ Изменить", callback_data=f"mod:reject_edit:{app_id}"),
+                InlineKeyboardButton("↩️ Отменить", callback_data=f"mod:reject_cancel:{app_id}"),
+            ]
+        ]),
+    )
+    return WAIT_REJECT_CONFIRM
+
+
+async def reject_confirm_action(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Подтверждение / правка / отмена ввода причины отказа."""
+    query = update.callback_query
+    if not query or not update.effective_user:
+        return ConversationHandler.END
+    await query.answer()
+
+    s = _settings(context)
+    # Кнопки подтверждения работают только в админском чате.
+    msg_chat_id = getattr(getattr(query, "message", None), "chat_id", None)
+    if s.admin_chat_id and msg_chat_id != s.admin_chat_id:
+        await query.answer("Кнопки доступны только в админском чате", show_alert=True)
         return ConversationHandler.END
 
-    owner = get_application_for_admin(s.sqlite_path, app_id)
-    if owner:
-        owner_id, _ = owner
-        msg = "К сожалению, по анкете отказ. Можно подать повторно позже."
-        if reason:
-            msg += f"\nПричина: {reason}"
-        await context.bot.send_message(chat_id=owner_id, text=msg)
+    parts = (query.data or "").split(":")
+    if len(parts) != 4:
+        return ConversationHandler.END
+    app_id = int(parts[3])
 
-    await update.message.reply_text(f"Анкета #{app_id} отклонена ❌")
-    context.user_data.pop("reject_app_id", None)
+    # Защита от рассинхрона — берём id из user_data, если есть.
+    pending_app_id = int(context.user_data.get("reject_pending_app_id", 0) or 0)
+    if pending_app_id and pending_app_id != app_id:
+        app_id = pending_app_id
+
+    if parts[2] == "cancel":
+        context.user_data.pop("reject_pending_reason", None)
+        context.user_data.pop("reject_pending_app_id", None)
+        context.user_data.pop("reject_app_id", None)
+        try:
+            await query.edit_message_text(f"Отказ по анкете #{app_id} отменён. Кнопки возвращены в исходное состояние.")
+        except Exception:
+            pass
+        return ConversationHandler.END
+
+    if parts[2] == "edit":
+        try:
+            await query.edit_message_text(
+                f"Ок, напиши новую причину отказа по анкете #{app_id} (или '-' чтобы без причины)."
+            )
+        except Exception:
+            pass
+        context.user_data["reject_app_id"] = app_id
+        return WAIT_REJECT_REASON
+
+    if parts[2] == "send":
+        reason = context.user_data.get("reject_pending_reason")
+        # Лок на случай гонки с другой модерацией
+        lock_key = f"mod_lock:{app_id}"
+        if context.application.bot_data.get(lock_key):
+            await query.answer("Заявка уже обрабатывается…", show_alert=False)
+            return ConversationHandler.END
+        context.application.bot_data[lock_key] = True
+        try:
+            ok = set_decision(s.sqlite_path, app_id, "rejected", update.effective_user.id, reject_reason=reason)
+            if not ok:
+                await query.answer("Заявка уже обработана или недоступна.", show_alert=True)
+                return ConversationHandler.END
+
+            owner = get_application_for_admin(s.sqlite_path, app_id)
+            if owner:
+                owner_id, _ = owner
+                msg = "К сожалению, по анкете отказ. Можно подать повторно позже."
+                if reason:
+                    msg += f"\nПричина: {reason}"
+                await context.bot.send_message(chat_id=owner_id, text=msg)
+
+            try:
+                await query.edit_message_text(
+                    f"Анкета #{app_id} отклонена ❌" + (f"\nПричина: {reason}" if reason else "")
+                )
+            except Exception:
+                pass
+        finally:
+            context.application.bot_data.pop(lock_key, None)
+            context.user_data.pop("reject_pending_reason", None)
+            context.user_data.pop("reject_pending_app_id", None)
+            context.user_data.pop("reject_app_id", None)
+        return ConversationHandler.END
+
     return ConversationHandler.END
 
 

@@ -74,3 +74,20 @@ def get_top_activity(db_path: str, chat_id: int, limit: int = 20):
     rows = cur.fetchall()
     conn.close()
     return rows
+
+
+def get_activity_members(db_path: str, chat_id: int):
+    conn = get_conn(db_path)
+    cur = conn.cursor()
+    cur.execute(
+        """
+        SELECT tg_user_id, COALESCE(username, ''), COALESCE(first_name, '')
+        FROM member_activity
+        WHERE chat_id = ?
+        ORDER BY msg_count DESC
+        """,
+        (chat_id,),
+    )
+    rows = cur.fetchall()
+    conn.close()
+    return rows
