@@ -1,4 +1,4 @@
-from telegram import ChatPermissions, InlineKeyboardButton, InlineKeyboardMarkup, Update
+from telegram import ChatPermissions, InlineKeyboardButton, InlineKeyboardMarkup, Update, User
 from telegram.ext import ContextTypes
 
 from bot.config import Settings
@@ -236,13 +236,32 @@ async def unwarn_user(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
     elif context.args:
         mention = context.args[0].strip()
         if mention.startswith("@"):
+            username = mention[1:]
+            s = _settings(context)
+            from bot.db import get_conn
+            conn = get_conn(s.sqlite_path)
+            cur = conn.cursor()
+            cur.execute(
+                "SELECT tg_user_id FROM member_activity WHERE chat_id = ? AND LOWER(username) = ? ORDER BY updated_at DESC LIMIT 1",
+                (update.effective_chat.id, username.lower()),
+            )
+            row = cur.fetchone()
+            conn.close()
+            if not row:
+                await update.message.reply_text(f"Пользователь @{username} не найден в чате")
+                return
+            uid = int(row[0])
+            # Создаём объект user для единого кода ниже
+            from telegram import User
+            target = User(id=uid, first_name="", is_bot=False)
+        else:
             await update.message.reply_text(
-                "Для /unwarn используй ответ на сообщение пользователя."
+                "Для /unwarn используй ответ на сообщение пользователя или @username"
             )
             return
 
     if not target:
-        await update.message.reply_text("Используй /unwarn ответом на сообщение пользователя")
+        await update.message.reply_text("Используй /unwarn ответом на сообщение пользователя или /unwarn @username")
         return
 
     if target.is_bot:
@@ -250,6 +269,8 @@ async def unwarn_user(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
         return
 
     s = _settings(context)
+    from bot.repositories.sanctions import list_warns_for_user
+
     warns = list_warns_for_user(s.sqlite_path, target.id)
     if not warns:
         await update.message.reply_text(f"У пользователя {target.id} нет предупреждений")
