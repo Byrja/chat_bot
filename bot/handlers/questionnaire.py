@@ -378,9 +378,9 @@ async def receive_reject_reason(update: Update, context: ContextTypes.DEFAULT_TY
         preview_text,
         reply_markup=InlineKeyboardMarkup([
             [
-                InlineKeyboardButton("✅ Отправить отказ", callback_data=f"mod:reject_send:{app_id}"),
-                InlineKeyboardButton("✏️ Изменить", callback_data=f"mod:reject_edit:{app_id}"),
-                InlineKeyboardButton("↩️ Отменить", callback_data=f"mod:reject_cancel:{app_id}"),
+                InlineKeyboardButton("✅ Отправить отказ", callback_data=f"mod:reject:send:{app_id}"),
+                InlineKeyboardButton("✏️ Изменить", callback_data=f"mod:reject:edit:{app_id}"),
+                InlineKeyboardButton("↩️ Отменить", callback_data=f"mod:reject:cancel:{app_id}"),
             ]
         ]),
     )

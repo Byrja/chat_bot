@@ -94,7 +94,7 @@ def build_app(settings: Settings) -> Application:
         entry_points=[CallbackQueryHandler(moderation_action, pattern=r"^mod:(approve|reject):[0-9]+$")],
         states={
             WAIT_REJECT_REASON: [MessageHandler(filters.TEXT & ~filters.COMMAND, receive_reject_reason)],
-            WAIT_REJECT_CONFIRM: [CallbackQueryHandler(reject_confirm_action, pattern=r"^mod:reject_(send|edit|cancel):[0-9]+$")],
+            WAIT_REJECT_CONFIRM: [CallbackQueryHandler(reject_confirm_action, pattern=r"^mod:reject:(send|edit|cancel):[0-9]+$")],
         },
         fallbacks=[CommandHandler("cancel", questionnaire_cancel)],
         allow_reentry=True,
