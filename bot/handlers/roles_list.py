@@ -4,7 +4,7 @@ from telegram.ext import ContextTypes
 from bot.config import Settings
 from bot.db import get_conn
 from bot.repositories.roles import get_role
-from bot.services.rbac import has_permission
+from bot.services.rbac import is_chat_admin_cmd
 
 
 _ROLE_RU = {
@@ -24,11 +24,11 @@ async def roles_list(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
     if not update.message or not update.effective_user or not update.effective_chat:
         return
 
-    s = _settings(context)
-    if not has_permission(s, s.sqlite_path, update.effective_user.id, "warn"):
+    if not await is_chat_admin_cmd(context, update.effective_chat.id, update.effective_user.id):
         await update.message.reply_text("Недостаточно прав")
         return
 
+    s = _settings(context)
     conn = get_conn(s.sqlite_path)
     cur = conn.cursor()
     cur.execute(
@@ -48,7 +48,6 @@ async def roles_list(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
         await update.message.reply_text("Пока нет данных по участникам в этом чате.")
         return
 
-    # Dedup by uid while preserving recency order.
     seen = set()
     users = []
     for uid, uname, fname in rows:
@@ -74,7 +73,6 @@ async def roles_list(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
         else:
             lines.append("—")
 
-    # Avoid oversized telegram messages
     text = "\n".join(lines)
     if len(text) > 3900:
         chunks = []

@@ -3,6 +3,8 @@ from telegram.ext import ContextTypes
 
 from bot.config import Settings
 from bot.db import get_conn
+from bot.repositories.activity import ensure_member, update_member_name
+from bot.services.rbac import invalidate_chat_admins
 
 
 def _settings(context: ContextTypes.DEFAULT_TYPE) -> Settings:
@@ -66,6 +68,11 @@ async def member_status_event(update: Update, context: ContextTypes.DEFAULT_TYPE
     if not cmu:
         return
 
+    # Любое изменение статуса участника (promote/demote/leave/kick/join)
+    # инвалидирует кэш Telegram-админов, чтобы следующий is_chat_admin_cmd
+    # подтянул свежий список без ожидания TTL 5 мин.
+    invalidate_chat_admins(context, cmu.chat.id)
+
     s = _settings(context)
     chat = cmu.chat
     if not chat or chat.id != s.main_chat_id:
@@ -83,8 +90,14 @@ async def member_status_event(update: Update, context: ContextTypes.DEFAULT_TYPE
     if just_joined:
         who = _display_name(user)
         await context.bot.send_message(chat_id=s.main_chat_id, text=f"👋 Добро пожаловать, {who}!")
+        ensure_member(s.sqlite_path, chat.id, user.id, user.username, user.first_name)
 
         packet = _latest_application_packet(s.sqlite_path, user.id)
+        if packet:
+            _, _, answers = packet
+            name_from_app = answers.get('name')
+            if name_from_app and name_from_app.strip():
+                update_member_name(s.sqlite_path, chat.id, user.id, name_from_app.strip())
         kwargs = {}
         if s.main_questionnaires_thread_id:
             kwargs["message_thread_id"] = s.main_questionnaires_thread_id

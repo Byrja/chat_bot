@@ -3,7 +3,7 @@ from telegram.ext import ContextTypes
 
 from bot.config import Settings
 from bot.repositories.sanctions import add_sanction, count_warns, list_warns_for_user, remove_warn_by_id
-from bot.services.rbac import has_permission
+from bot.services.rbac import is_chat_admin_cmd
 from bot.services.timeparse import parse_mute_duration
 
 
@@ -11,19 +11,24 @@ def _settings(context: ContextTypes.DEFAULT_TYPE) -> Settings:
     return context.application.bot_data.get("settings") or context.application.settings
 
 
-def _can(update: Update, context: ContextTypes.DEFAULT_TYPE, command: str) -> bool:
+async def _require_admin(update: Update, context: ContextTypes.DEFAULT_TYPE) -> bool:
+    """True если user — Telegram-админ chat_id (или env owner). Иначе шлёт 'Недостаточно прав'."""
     user = update.effective_user
-    if not user:
+    chat = update.effective_chat
+    if not user or not chat:
         return False
-    s = _settings(context)
-    return has_permission(s, s.sqlite_path, user.id, command)
+    ok = await is_chat_admin_cmd(context, chat.id, user.id)
+    if not ok:
+        msg = update.message or (update.callback_query.message if update.callback_query else None)
+        if msg:
+            await msg.reply_text("Недостаточно прав")
+    return ok
 
 
 async def mute_user(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if not update.message or not update.effective_chat:
         return
-    if not _can(update, context, "mute"):
-        await update.message.reply_text("Недостаточно прав")
+    if not await _require_admin(update, context):
         return
 
     if not update.message.reply_to_message or not update.message.reply_to_message.from_user:
@@ -75,8 +80,7 @@ async def mute_user(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 async def ban_user(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if not update.message or not update.effective_chat:
         return
-    if not _can(update, context, "ban"):
-        await update.message.reply_text("Недостаточно прав")
+    if not await _require_admin(update, context):
         return
 
     if not update.message.reply_to_message or not update.message.reply_to_message.from_user:
@@ -119,8 +123,7 @@ async def ban_user(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 async def unmute_user(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if not update.message or not update.effective_chat:
         return
-    if not _can(update, context, "mute"):
-        await update.message.reply_text("Недостаточно прав")
+    if not await _require_admin(update, context):
         return
 
     if not update.message.reply_to_message or not update.message.reply_to_message.from_user:
@@ -159,8 +162,7 @@ async def unmute_user(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
 async def warn_user(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if not update.message:
         return
-    if not _can(update, context, "warn"):
-        await update.message.reply_text("Недостаточно прав")
+    if not await _require_admin(update, context):
         return
 
     target = None
@@ -207,7 +209,6 @@ async def warn_user(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     except Exception:
         pass
 
-    # 3 warn check
     warn_count = count_warns(s.sqlite_path, target.id)
     if warn_count >= 3:
         markup = InlineKeyboardMarkup([
@@ -226,8 +227,7 @@ async def warn_user(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 async def unwarn_user(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if not update.message or not update.effective_chat:
         return
-    if not _can(update, context, "warn"):
-        await update.message.reply_text("Недостаточно прав")
+    if not await _require_admin(update, context):
         return
 
     target = None
@@ -251,7 +251,6 @@ async def unwarn_user(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
                 await update.message.reply_text(f"Пользователь @{username} не найден в чате")
                 return
             uid = int(row[0])
-            # Создаём объект user для единого кода ниже
             from telegram import User
             target = User(id=uid, first_name="", is_bot=False)
         else:
@@ -297,7 +296,7 @@ async def unwarn_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         return
     await query.answer()
 
-    if not _can(update, context, "warn"):
+    if not await _require_admin(update, context):
         await query.answer("Недостаточно прав", show_alert=True)
         return
 
@@ -329,7 +328,7 @@ async def warn_kick_confirm(update: Update, context: ContextTypes.DEFAULT_TYPE) 
         return
     await query.answer()
 
-    if not _can(update, context, "warn"):
+    if not await _require_admin(update, context):
         await query.answer("Недостаточно прав", show_alert=True)
         return
 
@@ -386,8 +385,7 @@ async def warn_kick_confirm(update: Update, context: ContextTypes.DEFAULT_TYPE) 
 async def warn_list_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if not update.message or not update.effective_chat:
         return
-    if not _can(update, context, "warn"):
-        await update.message.reply_text("Недостаточно прав")
+    if not await _require_admin(update, context):
         return
 
     s = _settings(context)
@@ -417,8 +415,7 @@ async def all_members(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
     try:
         if not update.message or not update.effective_chat:
             return
-        if not _can(update, context, "warn"):
-            await update.message.reply_text("Недостаточно прав")
+        if not await _require_admin(update, context):
             return
 
         s = _settings(context)

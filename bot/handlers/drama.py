@@ -3,7 +3,7 @@ from telegram.ext import ContextTypes
 
 from bot.config import Settings
 from bot.repositories.drama import get_days_without_drama, reset_drama
-from bot.services.rbac import has_permission
+from bot.services.rbac import is_chat_admin_cmd
 
 
 def _settings(context: ContextTypes.DEFAULT_TYPE) -> Settings:
@@ -34,10 +34,10 @@ async def drama_reset(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
     if not update.message or not update.effective_user or not update.effective_chat:
         return
 
-    s = _settings(context)
-    if not has_permission(s, s.sqlite_path, update.effective_user.id, "warn"):
+    if not await is_chat_admin_cmd(context, update.effective_chat.id, update.effective_user.id):
         await update.message.reply_text("Недостаточно прав")
         return
 
+    s = _settings(context)
     reset_drama(s.sqlite_path, update.effective_chat.id, update.effective_user.id)
     await update.message.reply_text("💥 Счётчик драмы сброшен")

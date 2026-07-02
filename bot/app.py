@@ -29,6 +29,7 @@ from bot.handlers.questionnaire import (
 )
 from bot.handlers.about import about
 from bot.handlers.activity import show_activity, track_message_activity
+from bot.handlers.chat_events import on_my_chat_member
 from bot.handlers.member_events import member_status_event
 from bot.handlers.menu import menu_action, show_menu
 from bot.handlers.mod_panel import mod_panel, mod_quick_action, mod_quick_ask_reason
@@ -156,6 +157,7 @@ def build_app(settings: Settings) -> Application:
     app.add_handler(MessageHandler(filters.Regex(r"^[+-]$") & filters.REPLY, karma_plusminus_reply))
     app.add_handler(MessageHandler(filters.ChatType.GROUPS & ~filters.COMMAND, track_message_activity))
     app.add_handler(ChatMemberHandler(member_status_event, ChatMemberHandler.CHAT_MEMBER))
+    app.add_handler(ChatMemberHandler(on_my_chat_member, ChatMemberHandler.MY_CHAT_MEMBER))
     app.add_handler(CommandHandler("health", health))
     app.add_error_handler(on_error)
 

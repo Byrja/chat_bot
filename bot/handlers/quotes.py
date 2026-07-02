@@ -3,35 +3,11 @@ from telegram.ext import ContextTypes
 
 from bot.config import Settings
 from bot.repositories.quotes import add_quote, delete_quote, get_quote_by_id, latest_quote, list_quotes, random_quote
-from bot.services.rbac import has_permission
+from bot.services.rbac import is_chat_admin_cmd
 
 
 def _settings(context: ContextTypes.DEFAULT_TYPE) -> Settings:
     return context.application.bot_data.get("settings") or context.application.settings
-
-
-async def _is_admin(update: Update, context: ContextTypes.DEFAULT_TYPE) -> bool:
-    """Check if user is an admin (env list, DB role, or Telegram chat admin)."""
-    user = update.effective_user
-    if not user:
-        return False
-    s = _settings(context)
-    if user.id in s.admin_user_ids:
-        return True
-    if has_permission(s, s.sqlite_path, user.id, "warn"):
-        return True
-    chat_id = update.effective_chat.id if update.effective_chat else None
-    if not chat_id:
-        return False
-    cache_key = f"admin_list:{chat_id}"
-    admins = context.application.bot_data.get(cache_key)
-    if admins is None:
-        try:
-            admins = await context.bot.get_chat_administrators(chat_id)
-            context.application.bot_data[cache_key] = admins
-        except Exception:
-            return False
-    return any(a.user.id == user.id for a in admins)
 
 
 def _chat_link(chat_id: int, message_id: int | None) -> str | None:
@@ -140,9 +116,9 @@ def _build_list_markup(rows, page: int = 0, per_page: int = 5):
 
 async def quotes_list_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     try:
-        if not update.message or not update.effective_chat:
+        if not update.message or not update.effective_chat or not update.effective_user:
             return
-        if not await _is_admin(update, context):
+        if not await is_chat_admin_cmd(context, update.effective_chat.id, update.effective_user.id):
             await update.message.reply_text("Недостаточно прав")
             return
 
@@ -192,7 +168,10 @@ async def quotes_view_callback(update: Update, context: ContextTypes.DEFAULT_TYP
             return
         await query.answer()
 
-        if not await _is_admin(update, context):
+        chat_id = query.message.chat.id if query.message else None
+        if not chat_id:
+            return
+        if not await is_chat_admin_cmd(context, chat_id, update.effective_user.id):
             await query.answer("Недостаточно прав", show_alert=True)
             return
 
@@ -240,7 +219,10 @@ async def quotes_delete_callback(update: Update, context: ContextTypes.DEFAULT_T
             return
         await query.answer()
 
-        if not await _is_admin(update, context):
+        chat_id = query.message.chat.id if query.message else None
+        if not chat_id:
+            return
+        if not await is_chat_admin_cmd(context, chat_id, update.effective_user.id):
             await query.answer("Недостаточно прав", show_alert=True)
             return
 
@@ -259,11 +241,8 @@ async def quotes_delete_callback(update: Update, context: ContextTypes.DEFAULT_T
         if not chat:
             return
 
-        ok = delete_quote(s.sqlite_path, qid, chat.id)
-        if ok:
-            await query.edit_message_text(f"Цитата #{qid} удалена 🗑")
-        else:
-            await query.edit_message_text(f"Цитата #{qid} не найдена или уже удалена")
+        delete_quote(s.sqlite_path, qid, chat.id)
+        await query.edit_message_text(f"🗑 Цитата #{qid} удалена")
     except Exception as e:
         if update.callback_query and update.callback_query.message:
             await update.callback_query.message.reply_text(f"Ошибка удаления: {e}")

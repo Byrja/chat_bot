@@ -5,7 +5,7 @@ from telegram.ext import ContextTypes
 
 from bot.config import Settings
 from bot.repositories.sanctions import add_sanction
-from bot.services.rbac import has_permission
+from bot.services.rbac import is_chat_admin_cmd
 
 
 def _settings(context: ContextTypes.DEFAULT_TYPE) -> Settings:
@@ -13,11 +13,10 @@ def _settings(context: ContextTypes.DEFAULT_TYPE) -> Settings:
 
 
 async def mod_panel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    if not update.message or not update.effective_user:
+    if not update.message or not update.effective_user or not update.effective_chat:
         return
 
-    s = _settings(context)
-    if not has_permission(s, s.sqlite_path, update.effective_user.id, "warn"):
+    if not await is_chat_admin_cmd(context, update.effective_chat.id, update.effective_user.id):
         await update.message.reply_text("Недостаточно прав")
         return
 
@@ -84,8 +83,7 @@ async def mod_quick_action(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         return
     await query.answer()
 
-    s = _settings(context)
-    if not has_permission(s, s.sqlite_path, update.effective_user.id, "warn"):
+    if not await is_chat_admin_cmd(context, update.effective_chat.id, update.effective_user.id):
         await query.answer("Недостаточно прав", show_alert=True)
         return
 
@@ -105,6 +103,7 @@ async def mod_quick_action(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         await query.answer("Эта панель не для тебя", show_alert=True)
         return
 
+    s = _settings(context)
     reason = f"quick panel: {_reason_label(reason_key)}"
 
     if action == "warn":

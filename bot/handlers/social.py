@@ -10,7 +10,7 @@ from bot.repositories.social import (
     get_friend_foe_top,
     resolve_bottle_game,
 )
-from bot.services.rbac import has_permission
+from bot.services.rbac import is_chat_admin_cmd
 
 
 def _settings(context: ContextTypes.DEFAULT_TYPE) -> Settings:
@@ -272,7 +272,7 @@ async def bottle_result_action(update: Update, context: ContextTypes.DEFAULT_TYP
         return
 
     s = _settings(context)
-    is_admin = has_permission(s, s.sqlite_path, update.effective_user.id, "warn")
+    is_admin = await is_chat_admin_cmd(context, update.effective_chat.id, update.effective_user.id)
     if update.effective_user.id not in {actor_uid} and not is_admin:
         await query.answer("Отметить может только исполнитель или админ", show_alert=True)
         return

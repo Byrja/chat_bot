@@ -8,7 +8,7 @@ from bot.config import Settings
 from bot.db import get_conn
 from bot.repositories.profile import clear_birthdate, get_birthdate, set_birthdate
 from bot.repositories.roles import get_role
-from bot.services.rbac import effective_role, has_permission
+from bot.services.rbac import effective_role, is_chat_admin_cmd, is_chat_admin_cached
 
 _ROLE_RU = {
     "admin": "Админ",
@@ -37,7 +37,8 @@ def _menu_kb(update: Update, context: ContextTypes.DEFAULT_TYPE, issuer_id: int)
         [InlineKeyboardButton("⚙️ Настройки", callback_data=f"menu:settings:{issuer_id}")],
     ]
 
-    if has_permission(s, s.sqlite_path, issuer_id, "warn"):
+    chat_id = update.effective_chat.id if update.effective_chat else None
+    if is_chat_admin_cached(context, chat_id, issuer_id):
         rows.append([InlineKeyboardButton("🛡 Модерация", callback_data=f"menu:mod:{issuer_id}")])
 
     return InlineKeyboardMarkup(rows)
@@ -591,7 +592,7 @@ async def menu_action(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
         return
 
     if action == "mod":
-        if not has_permission(s, s.sqlite_path, uid, "warn"):
+        if not await is_chat_admin_cmd(context, update.effective_chat.id, uid):
             await query.edit_message_text("Недостаточно прав", reply_markup=_back_kb(issuer_id))
             return
         await query.edit_message_text(
@@ -613,7 +614,7 @@ async def menu_action(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
         return
 
     if action == "mod_roles":
-        if not has_permission(s, s.sqlite_path, uid, "warn"):
+        if not await is_chat_admin_cmd(context, update.effective_chat.id, uid):
             await query.edit_message_text("Недостаточно прав", reply_markup=_back_kb(issuer_id))
             return
 
@@ -669,7 +670,7 @@ async def menu_action(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
         return
 
     if action == "mod_warnlist":
-        if not has_permission(s, s.sqlite_path, uid, "warn"):
+        if not await is_chat_admin_cmd(context, update.effective_chat.id, uid):
             await query.edit_message_text("Недостаточно прав", reply_markup=_back_kb(issuer_id))
             return
         from bot.repositories.sanctions import list_warned, list_warns_for_user
@@ -700,7 +701,7 @@ async def menu_action(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
         return
 
     if action == "mod_quoteslist":
-        if not has_permission(s, s.sqlite_path, uid, "warn"):
+        if not await is_chat_admin_cmd(context, update.effective_chat.id, uid):
             await query.edit_message_text("Недостаточно прав", reply_markup=_back_kb(issuer_id))
             return
         from bot.handlers.quotes import _build_list_markup

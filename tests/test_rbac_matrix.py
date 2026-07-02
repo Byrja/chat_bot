@@ -15,7 +15,8 @@ def _settings() -> Settings:
     )
 
 
-def test_rbac_matrix(tmp_path):
+def test_rbac_matrix_admin(tmp_path):
+    """has_permission теперь только для activity. Админские права — в is_chat_admin_cmd."""
     db_file = tmp_path / "md4_rbac_matrix.db"
     init_db(str(db_file))
     s = _settings()
@@ -23,27 +24,28 @@ def test_rbac_matrix(tmp_path):
     set_role(str(db_file), 100, "old", 9001)
     set_role(str(db_file), 101, "trusted", 9001)
     set_role(str(db_file), 102, "newbie", 9001)
+    set_role(str(db_file), 103, "lava", 9001)
+    set_role(str(db_file), 104, "admin", 9001)
 
-    # admin
-    assert has_permission(s, str(db_file), 9001, "warn") is True
-    assert has_permission(s, str(db_file), 9001, "mute") is True
-    assert has_permission(s, str(db_file), 9001, "ban") is True
-    assert has_permission(s, str(db_file), 9001, "admin_stats") is True
+    # activity — для всех ролей (через has_permission бэк-совместимость)
+    for uid in (100, 101, 102, 103, 104, 9001):
+        assert has_permission(s, str(db_file), uid, "activity") is True
 
-    # old
-    assert has_permission(s, str(db_file), 100, "warn") is False
-    assert has_permission(s, str(db_file), 100, "mute") is False
-    assert has_permission(s, str(db_file), 100, "ban") is False
-    assert has_permission(s, str(db_file), 100, "activity") is True
+    # admin-команды — больше не от роли (deprecated ключи возвращают False)
+    for cmd in ("warn", "mute", "ban", "admin_stats"):
+        for uid in (100, 101, 102, 103, 104, 9001):
+            assert has_permission(s, str(db_file), uid, cmd) is False, (
+                f"{uid}/{cmd} должен быть False — админские права идут через is_chat_admin_cmd"
+            )
 
-    # trusted
-    assert has_permission(s, str(db_file), 101, "warn") is False
-    assert has_permission(s, str(db_file), 101, "mute") is False
-    assert has_permission(s, str(db_file), 101, "ban") is False
-    assert has_permission(s, str(db_file), 101, "activity") is True
 
-    # newbie
-    assert has_permission(s, str(db_file), 102, "warn") is False
-    assert has_permission(s, str(db_file), 102, "mute") is False
-    assert has_permission(s, str(db_file), 102, "ban") is False
-    assert has_permission(s, str(db_file), 102, "activity") is True
+def test_default_role_newbie(tmp_path):
+    """Без записи в member_roles роль = newbie."""
+    from bot.services.rbac import effective_role
+    db_file = tmp_path / "md4_default.db"
+    init_db(str(db_file))
+    s = _settings()
+    # 9999 — нет в admin_user_ids и нет записи в member_roles
+    assert effective_role(s, str(db_file), 9999) == "newbie"
+    # 9001 — в admin_user_ids → admin
+    assert effective_role(s, str(db_file), 9001) == "admin"

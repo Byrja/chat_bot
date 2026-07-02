@@ -133,3 +133,39 @@ def get_activity_members(db_path: str, chat_id: int):
     rows = cur.fetchall()
     conn.close()
     return rows
+
+
+def ensure_member(db_path: str, chat_id: int, tg_user_id: int, username: str | None, first_name: str | None) -> None:
+    conn = get_conn(db_path)
+    cur = conn.cursor()
+    cur.execute(
+        """
+        INSERT INTO member_activity (chat_id, tg_user_id, username, first_name, msg_count, last_message_at, updated_at)
+        VALUES (?, ?, ?, ?, 0, NULL, CURRENT_TIMESTAMP)
+        ON CONFLICT(chat_id, tg_user_id)
+        DO UPDATE SET
+            username=excluded.username,
+            first_name=excluded.first_name,
+            updated_at=CURRENT_TIMESTAMP
+        WHERE excluded.username IS NOT NULL OR excluded.first_name IS NOT NULL
+        """,
+        (chat_id, tg_user_id, username or None, first_name or None),
+    )
+    conn.commit()
+    conn.close()
+
+
+def update_member_name(db_path: str, chat_id: int, tg_user_id: int, first_name: str) -> None:
+    conn = get_conn(db_path)
+    cur = conn.cursor()
+    cur.execute(
+        """
+        UPDATE member_activity
+        SET first_name = ?,
+            updated_at = CURRENT_TIMESTAMP
+        WHERE chat_id = ? AND tg_user_id = ?
+        """,
+        (first_name, chat_id, tg_user_id),
+    )
+    conn.commit()
+    conn.close()
