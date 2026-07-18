@@ -17,22 +17,13 @@ def _settings(context: ContextTypes.DEFAULT_TYPE) -> Settings:
     return context.application.bot_data.get("settings") or context.application.settings
 
 
-def _label(db_path: str, chat_id: int, uid: int) -> str:
-    conn = get_conn(db_path)
-    cur = conn.cursor()
-    cur.execute(
-        "SELECT COALESCE(username,''), COALESCE(first_name,'') FROM member_activity WHERE chat_id = ? AND tg_user_id = ? ORDER BY updated_at DESC LIMIT 1",
-        (chat_id, uid),
-    )
-    row = cur.fetchone()
-    conn.close()
-    if row:
-        u, f = row
-        if u:
-            return f"@{u}"
-        if f:
-            return f
-    return str(uid)
+from bot.services.formatting import user_link_from_parts as _user_link
+
+
+def _back_to_menu_kb(issuer) -> InlineKeyboardMarkup | None:
+    if not issuer:
+        return None
+    return InlineKeyboardMarkup([[InlineKeyboardButton("⬅️ В меню", callback_data=f"menu:home:{issuer}")]])
 
 
 async def friend_foe_stats(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -54,10 +45,10 @@ async def friend_foe_stats(update: Update, context: ContextTypes.DEFAULT_TYPE) -
             parts = update.callback_query.data.split(":")
             if len(parts) == 3 and parts[0] == "menu":
                 issuer = parts[2]
-        back = InlineKeyboardMarkup([[InlineKeyboardButton("⬅️ Назад", callback_data=f"menu:social:{issuer}")]]) if issuer else None
+        back = _back_to_menu_kb(issuer)
         await update.callback_query.edit_message_text(text, reply_markup=back)
     else:
-        await msg.reply_text(text)
+        await msg.reply_text(text, reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("⬅️ В меню", callback_data="menu:home:0")]]))
 
 
 async def friend_foe_top(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -67,18 +58,26 @@ async def friend_foe_top(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     s = _settings(context)
     pos, neg = get_friend_foe_top(s.sqlite_path, update.effective_chat.id, limit=3)
 
+    conn = get_conn(s.sqlite_path)
+    cur = conn.cursor()
+    uids = {int(uid) for uid, _ in pos} | {int(uid) for uid, _ in neg}
+    from bot.services.formatting import fetch_names_bulk
+    names = fetch_names_bulk(s.sqlite_path, update.effective_chat.id, list(uids))
+    conn.close()
+
     lines = ["👥 Топ друзей и козлов", "───────────────────", "🤝 Друзья:"]
     if pos:
         for i, (uid, score) in enumerate(pos, 1):
-            lines.append(f"{i}. {_label(s.sqlite_path, update.effective_chat.id, int(uid))} — {int(score)}")
+            u_, f_ = names.get(int(uid), ("", ""))
+            lines.append(f"{i}. {_user_link(f_, u_, int(uid))} — {int(score)}")
     else:
         lines.append("—")
-
     lines.append("")
     lines.append("😈 Козлы:")
     if neg:
         for i, (uid, score) in enumerate(neg, 1):
-            lines.append(f"{i}. {_label(s.sqlite_path, update.effective_chat.id, int(uid))} — {int(score)}")
+            u_, f_ = names.get(int(uid), ("", ""))
+            lines.append(f"{i}. {_user_link(f_, u_, int(uid))} — {int(score)}")
     else:
         lines.append("—")
 
@@ -89,10 +88,14 @@ async def friend_foe_top(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             parts = update.callback_query.data.split(":")
             if len(parts) == 3 and parts[0] == "menu":
                 issuer = parts[2]
-        back = InlineKeyboardMarkup([[InlineKeyboardButton("⬅️ Назад", callback_data=f"menu:social:{issuer}")]]) if issuer else None
-        await update.callback_query.edit_message_text(text, reply_markup=back)
+        back = _back_to_menu_kb(issuer)
+        await update.callback_query.edit_message_text(text, parse_mode="HTML", reply_markup=back)
     else:
-        await msg.reply_text(text)
+        await msg.reply_text(
+            text,
+            parse_mode="HTML",
+            reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("⬅️ В меню", callback_data="menu:home:0")]]),
+        )
 
 
 def _bottle_task_pool(actor: str, partner: str, third: str | None = None, mode: str = "hard") -> list[str]:
@@ -167,7 +170,7 @@ async def bottle_game(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
         return
 
     actor_uid = update.effective_user.id
-    actor = _label(s.sqlite_path, update.effective_chat.id, actor_uid)
+    actor = _user_link(update.effective_user.first_name or "", update.effective_user.username or "", actor_uid)
 
     kb = InlineKeyboardMarkup([
         [
@@ -177,19 +180,23 @@ async def bottle_game(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
         ]
     ])
     text = f"🍾 {actor} запускает бутылочку. Выбери режим задания:"
-    await msg.reply_text(text, reply_markup=kb)
+    await msg.reply_text(text, parse_mode="HTML", reply_markup=kb)
 
 
 async def bottle_join_action(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     query = update.callback_query
     if not query or not update.effective_user or not update.effective_chat:
         return
-    await query.answer()
 
     parts = (query.data or "").split(":")
     if len(parts) != 3:
+        await query.answer()
         return
-    actor_uid = int(parts[2])
+    try:
+        actor_uid = int(parts[2])
+    except ValueError:
+        await query.answer("Некорректные данные", show_alert=True)
+        return
     joiner_uid = update.effective_user.id
     if joiner_uid == actor_uid:
         await query.answer("Нужен второй участник", show_alert=True)
@@ -207,24 +214,48 @@ async def bottle_join_action(update: Update, context: ContextTypes.DEFAULT_TYPE)
     s = _settings(context)
     # actor_uid = initiator (task giver), joiner_uid = performer
     gid = create_bottle_game(s.sqlite_path, update.effective_chat.id, actor_uid, joiner_uid, actor_uid)
-    actor = _label(s.sqlite_path, update.effective_chat.id, actor_uid)
-    partner = _label(s.sqlite_path, update.effective_chat.id, joiner_uid)
 
-    # Optional third participant from current chat activity
+    # Pull names for actor/partner/third from member_activity (username + first_name)
     conn = get_conn(s.sqlite_path)
     cur = conn.cursor()
+    name_cache: dict[int, tuple[str, str]] = {}
+
+    def _names(uid: int) -> tuple[str, str]:
+        if uid in name_cache:
+            return name_cache[uid]
+        cur.execute(
+            "SELECT COALESCE(username,''), COALESCE(first_name,'') FROM member_activity WHERE chat_id = ? AND tg_user_id = ? ORDER BY updated_at DESC LIMIT 1",
+            (update.effective_chat.id, uid),
+        )
+        r = cur.fetchone()
+        if r:
+            name_cache[uid] = (str(r[0] or ""), str(r[1] or ""))
+        else:
+            name_cache[uid] = ("", "")
+        return name_cache[uid]
+
+    actor_u, actor_f = _names(actor_uid)
+    partner_u, partner_f = _names(joiner_uid)
+    actor = _user_link(actor_f, actor_u, actor_uid)
+    partner = _user_link(partner_f, partner_u, joiner_uid)
+
+    # Optional third participant from current chat activity
     cur.execute(
         "SELECT tg_user_id FROM member_activity WHERE chat_id = ? ORDER BY RANDOM() LIMIT 20",
         (update.effective_chat.id,),
     )
     pool = [int(r[0]) for r in cur.fetchall()]
-    conn.close()
     third_uid = None
     for u in pool:
         if u not in {actor_uid, joiner_uid}:
             third_uid = u
             break
-    third = _label(s.sqlite_path, update.effective_chat.id, third_uid) if third_uid else None
+    if third_uid:
+        third_u, third_f = _names(third_uid)
+        third = _user_link(third_f, third_u, third_uid)
+    else:
+        third = None
+    conn.close()
 
     mode = str(lobby.get("mode", "hard")) if lobby else "hard"
     pool = _bottle_task_pool(actor, partner, third=third, mode=mode)
@@ -251,6 +282,7 @@ async def bottle_join_action(update: Update, context: ContextTypes.DEFAULT_TYPE)
         f"Кто даёт задание: {actor}\n\n"
         f"Задание:\n{task}\n\n"
         f"Отметьте результат:",
+        parse_mode="HTML",
         reply_markup=kb,
     )
 
@@ -259,10 +291,10 @@ async def bottle_result_action(update: Update, context: ContextTypes.DEFAULT_TYP
     query = update.callback_query
     if not query or not update.effective_user or not update.effective_chat:
         return
-    await query.answer()
 
     parts = (query.data or "").split(":")
     if len(parts) != 4:
+        await query.answer()
         return
     action, gid_s, actor_s = parts[1], parts[2], parts[3]
     try:
@@ -286,8 +318,25 @@ async def bottle_result_action(update: Update, context: ContextTypes.DEFAULT_TYP
     delta = 10 if action == "done" else -10
     apply_karma(s.sqlite_path, update.effective_chat.id, 0, performer_uid_db, delta, reason="bottle_game")
 
-    performer = _label(s.sqlite_path, update.effective_chat.id, performer_uid_db)
+    # Pull performer name from member_activity
+    conn = get_conn(s.sqlite_path)
+    cur = conn.cursor()
+    cur.execute(
+        "SELECT COALESCE(username,''), COALESCE(first_name,'') FROM member_activity WHERE chat_id = ? AND tg_user_id = ? ORDER BY updated_at DESC LIMIT 1",
+        (update.effective_chat.id, performer_uid_db),
+    )
+    r = cur.fetchone()
+    conn.close()
+    pu = str(r[0] or "") if r else ""
+    pf = str(r[1] or "") if r else ""
+    performer = _user_link(pf, pu, performer_uid_db)
     if delta > 0:
-        await query.edit_message_text(f"✅ Задание выполнено. {performer} получает +10 кармы")
+        await query.edit_message_text(
+            f"✅ Задание выполнено. {performer} получает +10 кармы",
+            parse_mode="HTML",
+        )
     else:
-        await query.edit_message_text(f"❌ Задание провалено. {performer} получает -10 кармы")
+        await query.edit_message_text(
+            f"❌ Задание провалено. {performer} получает -10 кармы",
+            parse_mode="HTML",
+        )

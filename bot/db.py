@@ -197,6 +197,18 @@ CREATE TABLE IF NOT EXISTS goats (
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     UNIQUE(chat_id, from_tg_user_id, to_tg_user_id)
 );
+
+CREATE TABLE IF NOT EXISTS member_notes (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    target_tg_user_id INTEGER NOT NULL,
+    author_tg_user_id INTEGER NOT NULL,
+    note_text TEXT NOT NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_member_notes_target
+ON member_notes(target_tg_user_id);
 """
 
 

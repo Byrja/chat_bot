@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 import time
 
 from telegram import ChatPermissions, InlineKeyboardButton, InlineKeyboardMarkup, Update
@@ -9,6 +9,32 @@ from bot.db import get_conn
 from bot.repositories.profile import clear_birthdate, get_birthdate, set_birthdate
 from bot.repositories.roles import get_role
 from bot.services.rbac import effective_role, is_chat_admin_cmd, is_chat_admin_cached
+
+
+def _human_date(dt_str: str | None) -> str:
+    if not dt_str:
+        return "никогда"
+    try:
+        dt = datetime.fromisoformat(dt_str.replace("Z", "+00:00"))
+    except (ValueError, AttributeError):
+        return dt_str
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    now = datetime.now(timezone.utc)
+    delta = now - dt
+    if delta.days < 0:
+        return "будущее"
+    if delta.days == 0:
+        return f"сегодня в {dt.strftime('%H:%M')}"
+    if delta.days == 1:
+        return f"вчера в {dt.strftime('%H:%M')}"
+    if delta.days < 7:
+        return f"{delta.days} дн. назад"
+    return dt.strftime("%d.%m")
+
+
+from bot.services.formatting import user_link_from_parts as _user_link
+
 
 _ROLE_RU = {
     "admin": "Админ",
@@ -28,11 +54,10 @@ def _menu_kb(update: Update, context: ContextTypes.DEFAULT_TYPE, issuer_id: int)
 
     rows = [
         [
-            InlineKeyboardButton("📊 Профиль", callback_data=f"menu:stats:{issuer_id}"),
             InlineKeyboardButton("🔥 Самые активные", callback_data=f"menu:activity:{issuer_id}"),
         ],
         [InlineKeyboardButton("💬 Топ пар", callback_data=f"menu:pairs:{issuer_id}")],
-        [InlineKeyboardButton("📣 Хипиш", callback_data=f"menu:fun_hipish:{issuer_id}"), InlineKeyboardButton("💥 Дни без драмы", callback_data=f"menu:drama_days:{issuer_id}")],
+        [InlineKeyboardButton("📣 Позвать админов", callback_data=f"menu:fun_hipish:{issuer_id}"), InlineKeyboardButton("🕊 Дни без драмы", callback_data=f"menu:drama_days:{issuer_id}")],
         [InlineKeyboardButton("🎭 Развлечения", callback_data=f"menu:fun:{issuer_id}"), InlineKeyboardButton("👥 Социалка", callback_data=f"menu:social:{issuer_id}")],
         [InlineKeyboardButton("⚙️ Настройки", callback_data=f"menu:settings:{issuer_id}")],
     ]
@@ -76,7 +101,7 @@ async def menu_action(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
     except Exception:
         return
 
-    if update.effective_user.id != issuer_id:
+    if update.effective_user.id != issuer_id and issuer_id != 0:
         await query.answer("Это меню не для тебя", show_alert=True)
         return
 
@@ -105,7 +130,7 @@ async def menu_action(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
             "───────────────────\n"
             f"Роль: {_ROLE_RU.get(role, role)}\n"
             f"Сообщений в чате: {msg_count}\n"
-            f"Последнее сообщение: {last_at or '—'}",
+            f"Последнее сообщение: {_human_date(last_at)}",
             reply_markup=_back_kb(issuer_id),
         )
         return
@@ -122,6 +147,7 @@ async def menu_action(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
         return
 
     if action in {"pairs_all", "pairs_week"}:
+        await query.answer("Загружаю топ пар...")
         conn = get_conn(s.sqlite_path)
         cur = conn.cursor()
         if action == "pairs_week":
@@ -152,31 +178,30 @@ async def menu_action(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
         if not rows:
             conn.close()
             text = "Пока нет данных по топ-парам (нужны reply-сообщения)."
+            await query.edit_message_text(text, reply_markup=_back_kb(issuer_id))
         else:
             uids = set()
             for fr, to, _, _ in rows:
                 uids.add(int(fr))
                 uids.add(int(to))
 
-            labels = {uid: str(uid) for uid in uids}
-            for uid in uids:
-                cur.execute(
-                    "SELECT COALESCE(username,''), COALESCE(first_name,'') FROM member_activity WHERE chat_id = ? AND tg_user_id = ? ORDER BY updated_at DESC LIMIT 1",
-                    (s.main_chat_id, uid),
-                )
-                r = cur.fetchone()
-                if r:
-                    uname, fname = r
-                    labels[uid] = fname or uname or str(uid)
+            from bot.services.formatting import fetch_names_bulk
+            names = fetch_names_bulk(s.sqlite_path, s.main_chat_id, list(uids))
             conn.close()
 
             title = "💬 Топ пар (7 дней)" if action == "pairs_week" else "💬 Топ пар (всё время)"
             lines = [title, "───────────────────"]
             for i, (fuid, tuid, cnt, last_at) in enumerate(rows, 1):
-                lines.append(f"{i}. {labels.get(int(fuid), fuid)} → {labels.get(int(tuid), tuid)} | {cnt} | {last_at or '—'}")
+                fu, ff = names.get(int(fuid), ("", ""))
+                tu, tf = names.get(int(tuid), ("", ""))
+                lines.append(
+                    f"{i}. {_user_link(ff, fu, int(fuid))} → {_user_link(tf, tu, int(tuid))} | {cnt} | {_human_date(last_at)}"
+                )
             text = "\n".join(lines)
-
-        await query.edit_message_text(text, reply_markup=_back_kb(issuer_id))
+            await query.edit_message_text(text, parse_mode="HTML", reply_markup=InlineKeyboardMarkup([
+            [InlineKeyboardButton("⬅️ Назад", callback_data=f"menu:pairs:{issuer_id}")],
+            [InlineKeyboardButton("⬅️ В меню", callback_data=f"menu:home:{issuer_id}")],
+        ]))
         return
 
     if action == "week":
@@ -205,14 +230,15 @@ async def menu_action(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
 
         if not rows:
             text = "Пока нет данных за последние 7 дней."
+            await query.edit_message_text(text, reply_markup=_back_kb(issuer_id))
         else:
             lines = ["📆 Топ самых активных (7 дней)", "───────────────────"]
             for i, (uid2, cnt, last_at, username, first_name) in enumerate(rows, 1):
-                label = (first_name or username or str(uid2))
-                lines.append(f"{i}. {label} — {cnt} | {last_at or '—'}")
+                lines.append(
+                    f"{i}. {_user_link(str(first_name or ''), str(username or ''), int(uid2))} — {cnt} | {_human_date(last_at)}"
+                )
             text = "\n".join(lines)
-
-        await query.edit_message_text(text, reply_markup=_back_kb(issuer_id))
+            await query.edit_message_text(text, parse_mode="HTML", reply_markup=_back_kb(issuer_id))
         return
 
     if action == "activity":
@@ -229,12 +255,13 @@ async def menu_action(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
         return
 
     if action in {"activity_all", "activity_day", "activity_week", "activity_month"}:
+        await query.answer("Загружаю активность...")
         conn = get_conn(s.sqlite_path)
         cur = conn.cursor()
         if action == "activity_all":
             cur.execute(
                 """
-                SELECT COALESCE(username,''), COALESCE(first_name,''), msg_count, last_message_at
+                SELECT tg_user_id, COALESCE(username,''), COALESCE(first_name,''), msg_count, last_message_at
                 FROM member_activity
                 WHERE chat_id = ?
                 ORDER BY msg_count DESC, datetime(last_message_at) DESC
@@ -278,20 +305,25 @@ async def menu_action(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
 
         if not rows:
             text = "Пока нет данных по активности за выбранный период."
+            await query.edit_message_text(text, reply_markup=_back_kb(issuer_id))
         else:
             lines = [title, "───────────────────"]
             for i, row in enumerate(rows, 1):
                 if action == "activity_all":
-                    username, first_name, cnt, last_at = row
+                    uid2, username, first_name, cnt, last_at = row
                 else:
-                    _uid, cnt, last_at, username, first_name = row
-                label = (first_name or username or "user")
-                lines.append(f"{i}. {label} — {cnt} | {last_at or '—'}")
+                    uid2, cnt, last_at, username, first_name = row
+                line_user = _user_link(str(first_name or ""), str(username or ""), int(uid2))
+                lines.append(f"{i}. {line_user} — {cnt} | {_human_date(last_at)}")
             if total is not None:
                 lines.append(f"\n💬 Всего сообщений за сутки: {total}")
             text = "\n".join(lines)
-
-        await query.edit_message_text(text, reply_markup=_back_kb(issuer_id))
+            await query.edit_message_text(
+                text, parse_mode="HTML", reply_markup=InlineKeyboardMarkup([
+                    [InlineKeyboardButton("⬅️ Назад", callback_data=f"menu:activity:{issuer_id}")],
+                    [InlineKeyboardButton("⬅️ В меню", callback_data=f"menu:home:{issuer_id}")],
+                ])
+            )
         return
 
     if action == "drama_days":
@@ -409,33 +441,31 @@ async def menu_action(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
         neg = cur.fetchall()
 
         uids = {int(u) for u, _ in pos} | {int(u) for u, _ in neg}
-        labels = {u: str(u) for u in uids}
-        for u in uids:
-            cur.execute(
-                "SELECT COALESCE(username,''), COALESCE(first_name,'') FROM member_activity WHERE chat_id = ? AND tg_user_id = ? ORDER BY updated_at DESC LIMIT 1",
-                (s.main_chat_id, u),
-            )
-            r = cur.fetchone()
-            if r:
-                uname, fname = r
-                labels[u] = f"@{uname}" if uname else (fname or str(u))
+        from bot.services.formatting import fetch_names_bulk
+        k_names = fetch_names_bulk(s.sqlite_path, s.main_chat_id, list(uids))
         conn.close()
 
         lines = ["⚖️ Карма чата", "───────────────────", "🌟 Топ +:"]
         if pos:
             for i, (u2, sc) in enumerate(pos, 1):
-                lines.append(f"{i}. {labels.get(int(u2), u2)} — {int(sc)}")
+                u_, f_ = k_names.get(int(u2), ("", ""))
+                lines.append(f"{i}. {_user_link(f_, u_, int(u2))} — {int(sc)}")
         else:
             lines.append("—")
         lines.append("")
         lines.append("💀 Топ -:")
         if neg:
             for i, (u2, sc) in enumerate(neg, 1):
-                lines.append(f"{i}. {labels.get(int(u2), u2)} — {int(sc)}")
+                u_, f_ = k_names.get(int(u2), ("", ""))
+                lines.append(f"{i}. {_user_link(f_, u_, int(u2))} — {int(sc)}")
         else:
             lines.append("—")
 
-        await query.edit_message_text("\n".join(lines), reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("⬅️ Назад", callback_data=f"menu:social:{issuer_id}")]]))
+        await query.edit_message_text(
+            "\n".join(lines),
+            parse_mode="HTML",
+            reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("⬅️ Назад", callback_data=f"menu:social:{issuer_id}")]]),
+        )
         return
 
     if action == "social_relation_help":
@@ -451,7 +481,7 @@ async def menu_action(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
 
     if action == "fun_hipish":
         await query.edit_message_text(
-            "Уверен ли ты, смерд, что хочешь призвать админов?",
+            "Ты точно хочешь позвать админов?",
             reply_markup=InlineKeyboardMarkup([
                 [InlineKeyboardButton("✅ Да", callback_data=f"menu:fun_hipish_do:{issuer_id}")],
                 [InlineKeyboardButton("❌ Нет", callback_data=f"menu:home:{issuer_id}")],
@@ -508,15 +538,19 @@ async def menu_action(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
         cur = conn.cursor()
         cur.execute("SELECT score FROM karma_scores WHERE chat_id = ? AND tg_user_id = ?", (s.main_chat_id, uid))
         k = cur.fetchone()
+        cur.execute("SELECT MIN(created_at) FROM member_messages WHERE chat_id = ? AND tg_user_id = ?", (s.main_chat_id, uid))
+        first_msg = cur.fetchone()
         conn.close()
         karma = int(k[0]) if k else 0
+        first_at = first_msg[0] if first_msg and first_msg[0] else None
 
         await query.edit_message_text(
             "⚙️ Твой профиль и настройки\n"
             "───────────────────\n"
             f"Роль: {_ROLE_RU.get(role, role)}\n"
             f"Дата рождения: {btxt}\n"
-            f"Карма: {karma}\n\n"
+            f"Карма: {karma}\n"
+            f"Первое сообщение: {_human_date(first_at)}\n\n"
             "Выбери действие:",
             reply_markup=InlineKeyboardMarkup([
                 [InlineKeyboardButton("🔇 Самомут 15 мин", callback_data=f"menu:settings_muteme15:{issuer_id}")],
@@ -605,6 +639,7 @@ async def menu_action(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
             "/mute 30 причина\n"
             "/ban причина",
             reply_markup=InlineKeyboardMarkup([
+                [InlineKeyboardButton("👤 Профили участников", callback_data=f"modprofile:list:{issuer_id}:0")],
                 [InlineKeyboardButton("👥 Статусы участников", callback_data=f"menu:mod_roles:{issuer_id}")],
                 [InlineKeyboardButton("📋 Список осужденных", callback_data=f"menu:mod_warnlist:{issuer_id}")],
                 [InlineKeyboardButton("📚 Список цитат", callback_data=f"menu:mod_quoteslist:{issuer_id}")],
@@ -642,14 +677,16 @@ async def menu_action(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
 
         seen = set()
         grouped = {"admin": [], "old": [], "trusted": [], "newbie": [], "lava": []}
+        total_count = 0
         for uid2, uname, fname in rows:
             uid2 = int(uid2)
             if uid2 in seen:
                 continue
             seen.add(uid2)
             role = "admin" if uid2 in s.admin_user_ids else get_role(s.sqlite_path, uid2)
-            label = (str(fname) or str(uname) or str(uid2))
-            grouped.setdefault(role, []).append(label)
+            label = (str(fname) or str(uname) or f"User {uid2}").replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+            grouped.setdefault(role, []).append(f'<a href="tg://user?id={uid2}">{label}</a>')
+            total_count += 1
             if sum(len(v) for v in grouped.values()) >= 40:
                 break
 
@@ -662,9 +699,12 @@ async def menu_action(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
                     lines.append(f"{i}. {label}")
             else:
                 lines.append("—")
+        if total_count >= 40 and len(rows) > 40:
+            lines.append(f"\n... и ещё {len(rows) - 40} участников")
 
         await query.edit_message_text(
             "\n".join(lines),
+            parse_mode="HTML",
             reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("⬅️ Назад", callback_data=f"menu:mod:{issuer_id}")]]),
         )
         return
@@ -683,15 +723,12 @@ async def menu_action(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
             return
         lines = ["⚠️ Список осужденных", "───────────────────"]
         for uid2, username, first_name, cnt in rows:
-            label = (first_name or username or str(uid2)).replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
-            if username:
-                lines.append(f"\n• @{username} — {cnt} пред.")
-            else:
-                lines.append(f'\n• <a href="tg://user?id={uid2}">{label}</a> — {cnt} пред.')
+            label = (first_name or username or f"User {uid2}").replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+            lines.append(f'\n• <a href="tg://user?id={uid2}">{label}</a> — {cnt} пред.')
             warns = list_warns_for_user(s.sqlite_path, uid2)
             for wid, reason, created_at in warns:
                 reason_text = f"Причина: {reason}" if reason else "Без причины"
-                lines.append(f"  #{wid} | {created_at} | {reason_text}")
+                lines.append(f"  #{wid} | {_human_date(created_at)} | {reason_text}")
         await query.edit_message_text(
             "\n".join(lines),
             parse_mode="HTML",
@@ -714,6 +751,7 @@ async def menu_action(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
             )
             return
         markup = _build_list_markup(rows, page=0)
+        markup.inline_keyboard.append([InlineKeyboardButton("⬅️ В меню", callback_data=f"menu:home:{issuer_id}")])
         await query.edit_message_text(
             "📋 Список цитат (нажми для просмотра):",
             reply_markup=markup,

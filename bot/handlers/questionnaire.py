@@ -451,7 +451,11 @@ async def reject_confirm_action(update: Update, context: ContextTypes.DEFAULT_TY
                 msg = "К сожалению, по анкете отказ. Можно подать повторно позже."
                 if reason:
                     msg += f"\nПричина: {reason}"
-                await context.bot.send_message(chat_id=owner_id, text=msg)
+                try:
+                    await context.bot.send_message(chat_id=owner_id, text=msg)
+                except Exception as e:
+                    # Пользователь деактивирован или заблокировал бота — отказ всё равно записываем
+                    pass
 
             try:
                 await query.edit_message_text(

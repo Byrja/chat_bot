@@ -1,5 +1,14 @@
 import os
 from dataclasses import dataclass
+from pathlib import Path
+
+try:
+    from dotenv import load_dotenv
+    _env_file = Path(__file__).resolve().parent.parent / ".env"
+    if _env_file.is_file():
+        load_dotenv(_env_file)
+except ImportError:
+    pass
 
 
 @dataclass
@@ -8,6 +17,7 @@ class Settings:
     main_chat_id: int
     admin_chat_id: int
     admin_user_ids: set[int]
+    blocked_user_ids: set[int]
     sqlite_path: str
     app_env: str
     main_questionnaires_thread_id: int | None = None
@@ -20,6 +30,8 @@ def load_settings() -> Settings:
     admin_chat_id = int(os.getenv("ADMIN_CHAT_ID", "0") or 0)
     admin_raw = os.getenv("ADMIN_USER_IDS", "")
     admins = {int(x.strip()) for x in admin_raw.split(",") if x.strip().isdigit()}
+    blocked_raw = os.getenv("BLOCKED_USER_IDS", "")
+    blocked = {int(x.strip()) for x in blocked_raw.split(",") if x.strip().isdigit()}
     sqlite_path = os.getenv("SQLITE_PATH", "./data/md4.db")
     app_env = os.getenv("APP_ENV", "dev").strip().lower()
     main_q_thread_raw = (os.getenv("MAIN_QUESTIONNAIRES_THREAD_ID", "") or "").strip()
@@ -31,6 +43,7 @@ def load_settings() -> Settings:
         main_chat_id=main_chat_id,
         admin_chat_id=admin_chat_id,
         admin_user_ids=admins,
+        blocked_user_ids=blocked,
         sqlite_path=sqlite_path,
         app_env=app_env,
         main_questionnaires_thread_id=main_q_thread,

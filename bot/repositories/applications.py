@@ -100,6 +100,29 @@ def submit_application(db_path: str, application_id: int) -> bool:
     return changed
 
 
+def get_latest_application_for_user(db_path: str, tg_user_id: int) -> tuple[int, str, dict[str, str]] | None:
+    """Вернуть последнюю заявку пользователя: (id, status, answers)."""
+    conn = get_conn(db_path)
+    cur = conn.cursor()
+    cur.execute(
+        """
+        SELECT id, status FROM applications
+        WHERE tg_user_id = ?
+        ORDER BY id DESC
+        LIMIT 1
+        """,
+        (tg_user_id,),
+    )
+    row = cur.fetchone()
+    if not row:
+        conn.close()
+        return None
+    app_id, status = int(row[0]), str(row[1])
+    answers = get_answers_map(db_path, app_id)
+    conn.close()
+    return app_id, status, answers
+
+
 def get_application_for_admin(db_path: str, application_id: int) -> tuple[int, dict[str, str]] | None:
     owner = get_application_owner(db_path, application_id)
     if owner is None:

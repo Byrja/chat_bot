@@ -60,8 +60,8 @@ async def roles_list(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
     grouped: dict[str, list[str]] = {"admin": [], "old": [], "trusted": [], "newbie": [], "lava": []}
     for uid, uname, fname in users:
         role = "admin" if uid in s.admin_user_ids else get_role(s.sqlite_path, uid)
-        label = (fname or uname or str(uid))
-        grouped.setdefault(role, []).append(label)
+        name = uname or fname or f"User {uid}"
+        grouped.setdefault(role, []).append(f'<a href="tg://user?id={uid}">{name}</a>')
 
     lines = ["👥 Статусы участников", "───────────────────"]
     for role_key in ["admin", "old", "trusted", "newbie", "lava"]:
@@ -88,6 +88,6 @@ async def roles_list(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
         if cur_chunk:
             chunks.append("\n".join(cur_chunk))
         for c in chunks:
-            await update.message.reply_text(c)
+            await update.message.reply_text(c, parse_mode="HTML")
     else:
-        await update.message.reply_text(text)
+        await update.message.reply_text(text, parse_mode="HTML")

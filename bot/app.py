@@ -28,11 +28,16 @@ from bot.handlers.questionnaire import (
     reject_confirm_action,
 )
 from bot.handlers.about import about
-from bot.handlers.activity import show_activity, track_message_activity
+from bot.handlers.activity import show_activity, show_today_top, show_top_week, track_message_activity
 from bot.handlers.chat_events import on_my_chat_member
 from bot.handlers.member_events import member_status_event
 from bot.handlers.menu import menu_action, show_menu
-from bot.handlers.mod_panel import mod_panel, mod_quick_action, mod_quick_ask_reason
+from bot.handlers.mod_panel import mod_panel, mod_quick_ask_reason, mod_quick_action, mod_cancel_action
+from bot.handlers.mod_profiles import (
+    mod_profile_cancel_command,
+    mod_profile_handler,
+    mod_profile_text_input,
+)
 from bot.handlers.profile_input import capture_birthdate_input
 from bot.handlers.questionnaire_lookup import questionnaire_lookup
 from bot.handlers.quotes import latest_quote_cmd, quotes_delete_callback, quotes_list_cmd, quotes_page_callback, quotes_view_callback, random_quote_cmd, save_quote
@@ -44,15 +49,16 @@ from bot.handlers.fun import hipish, mute_me
 from bot.handlers.karma import karma_me, karma_minus, karma_plus, karma_plusminus_reply, karma_top_cmd
 from bot.handlers.horoscope import horoscope
 from bot.handlers.relations import relation_accept, relation_action, relation_menu, relation_stats_cmd
+from bot.handlers.profile import profile_command
 from bot.handlers.roles_admin import set_role_command, whois_command
 from bot.handlers.roles_list import roles_list
 from bot.commands import command_list
 from bot.handlers.start import health
 from bot.handlers.top_pairs import show_top_pairs
-from bot.handlers.top_week import show_top_week, show_today_top
+from bot.handlers.activity import show_top_week, show_today_top
 from bot.handlers.thread_debug import topic_id
 from bot.handlers.birthday_reminders import send_birthday_reminders
-from bot.handlers.bottle_mode import bottle_mode_action
+from bot.handlers.bottle_mode import bottle_mode_action, bottle_cancel_action
 from bot.handlers.social import bottle_game, bottle_join_action, bottle_result_action, friend_foe_stats, friend_foe_top
 
 
@@ -112,6 +118,7 @@ def build_app(settings: Settings) -> Application:
     app.add_handler(CommandHandler("role", set_role_command))
     app.add_handler(CommandHandler("roles", roles_list))
     app.add_handler(CommandHandler("whois", whois_command))
+    app.add_handler(CommandHandler("profile", profile_command))
     app.add_handler(CommandHandler("activity", show_activity))
     app.add_handler(CommandHandler("top_pairs", show_top_pairs))
     app.add_handler(CommandHandler("top_week", show_top_week))
@@ -123,7 +130,7 @@ def build_app(settings: Settings) -> Application:
     app.add_handler(CommandHandler("quoteslist", quotes_list_cmd))
     app.add_handler(CallbackQueryHandler(quotes_page_callback, pattern=r"^quote_page_[0-9]+$"))
     app.add_handler(CallbackQueryHandler(quotes_view_callback, pattern=r"^quote_view_[0-9]+_[0-9]+$"))
-    app.add_handler(CallbackQueryHandler(quotes_delete_callback, pattern=r"^quote_del_[0-9]+$"))
+    app.add_handler(CallbackQueryHandler(quotes_delete_callback, pattern=r"^quote_del(_ask)?_[0-9]+$"))
     app.add_handler(CallbackQueryHandler(warn_kick_confirm, pattern=r"^warnkick_(yes|no)_[0-9]+$"))
     app.add_handler(CallbackQueryHandler(unwarn_callback, pattern=r"^unwarn_del_[0-9]+_[0-9]+$"))
     app.add_handler(CommandHandler("days_without_drama", days_without_drama))
@@ -143,12 +150,17 @@ def build_app(settings: Settings) -> Application:
     app.add_handler(CommandHandler("horoscope", horoscope))
     app.add_handler(CommandHandler("mod", mod_panel))
     app.add_handler(CallbackQueryHandler(menu_action, pattern=r"^menu:(home|stats|activity|activity_all|activity_day|activity_week|activity_month|pairs|pairs_all|pairs_week|drama_days|fun|social|social_ff_stats|social_ff_top|social_karma_me|social_karma_top|social_relation_help|fun_bottle|fun_horoscope|fun_quote_random|fun_quote_latest|fun_hipish|fun_hipish_do|mod|mod_roles|mod_warnlist|mod_quoteslist|settings|settings_muteme15|settings_bday|settings_bday_clear|settings_editform|settings_kick_confirm|settings_kick_do):[0-9]+$"))
+    app.add_handler(CallbackQueryHandler(mod_profile_handler, pattern=r"^modprofile:(list|view|role|warnask|mute30|banask|notes|noteask):[0-9]+(:[0-9]+(:[a-z]+)?)?$"))
+    app.add_handler(CommandHandler("mod_cancel", mod_profile_cancel_command))
+    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND & filters.ChatType.GROUPS, mod_profile_text_input))
     app.add_handler(CallbackQueryHandler(mod_quick_ask_reason, pattern=r"^modquickask:(warn|mute30|ban):[0-9]+:[0-9]+$"))
     app.add_handler(CallbackQueryHandler(mod_quick_action, pattern=r"^modquick:(warn|mute30|ban):[0-9]+:[0-9]+:(spam|abuse|offtopic|other)$"))
+    app.add_handler(CallbackQueryHandler(mod_cancel_action, pattern=r"^modcancel:[0-9]+:[0-9]+$"))
     app.add_handler(CallbackQueryHandler(relation_action, pattern=r"^rel:(friend_offer|goat):[0-9]+:[0-9]+$"))
     app.add_handler(CallbackQueryHandler(relation_accept, pattern=r"^rel:friend_accept:[0-9]+:[0-9]+$"))
     app.add_handler(CallbackQueryHandler(bottle_mode_action, pattern=r"^bottlemode:(light|hard|savage):-?[0-9]+:[0-9]+$"))
     app.add_handler(CallbackQueryHandler(bottle_join_action, pattern=r"^bottlejoin:-?[0-9]+:[0-9]+$"))
+    app.add_handler(CallbackQueryHandler(bottle_cancel_action, pattern=r"^bottlecancel:-?[0-9]+:[0-9]+$"))
     app.add_handler(CallbackQueryHandler(bottle_result_action, pattern=r"^bottle:(done|fail):[0-9]+:[0-9]+$"))
     app.add_handler(MessageHandler(filters.Regex(r"(?i)^\s*анкета\s+@?[a-zA-Z0-9_]{3,}\s*$"), questionnaire_lookup))
     app.add_handler(MessageHandler(filters.Regex(r"^\d{1,2}\.\d{1,2}$"), capture_birthdate_input))

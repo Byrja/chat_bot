@@ -3,16 +3,11 @@ from telegram.ext import ContextTypes
 
 from bot.config import Settings
 from bot.repositories.relations import accept_friend_request, add_goat, create_friend_request, relation_stats
+from bot.services.formatting import user_link_from_user
 
 
 def _settings(context: ContextTypes.DEFAULT_TYPE) -> Settings:
     return context.application.bot_data.get("settings") or context.application.settings
-
-
-def _label(user) -> str:
-    if not user:
-        return "unknown"
-    return user.first_name or (f"@{user.username}" if user.username else str(user.id))
 
 
 async def relation_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -35,7 +30,11 @@ async def relation_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
         [InlineKeyboardButton("🤝 Предложить дружбу", callback_data=f"rel:friend_offer:{target.id}:{issuer}")],
         [InlineKeyboardButton("😈 Записать в козлы", callback_data=f"rel:goat:{target.id}:{issuer}")],
     ])
-    await update.message.reply_text(f"Отношения с {_label(target)}:", reply_markup=kb)
+    await update.message.reply_text(
+        f"Отношения с {user_link_from_user(target)}:",
+        parse_mode="HTML",
+        reply_markup=kb,
+    )
 
 
 async def relation_action(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:

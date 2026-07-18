@@ -11,6 +11,14 @@ def _settings(context: ContextTypes.DEFAULT_TYPE) -> Settings:
     return context.application.bot_data.get("settings") or context.application.settings
 
 
+def _user_link(user) -> str:
+    """HTML-ссылка на пользователя из telegram.User объекта."""
+    if not user:
+        return "—"
+    name = user.first_name or (f"@{user.username}" if user.username else str(user.id))
+    return f'<a href="tg://user?id={user.id}">{name}</a>'
+
+
 async def _require_admin(update: Update, context: ContextTypes.DEFAULT_TYPE) -> bool:
     """True если user — Telegram-админ chat_id (или env owner). Иначе шлёт 'Недостаточно прав'."""
     user = update.effective_user
@@ -71,10 +79,10 @@ async def mute_user(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         until_at=until_dt.isoformat(),
     )
 
-    txt = f"🔇 Мут выдан пользователю {target.id} до {until_dt.strftime('%Y-%m-%d %H:%M UTC')}"
+    txt = f"🔇 Мут выдан пользователю {_user_link(target)} до {until_dt.strftime('%Y-%m-%d %H:%M UTC')}"
     if reason:
         txt += f"\nПричина: {reason}"
-    await update.message.reply_text(txt)
+    await update.message.reply_text(txt, parse_mode="HTML")
 
 
 async def ban_user(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -114,10 +122,10 @@ async def ban_user(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         until_at=None,
     )
 
-    text = f"⛔ Бан выдан пользователю {target.id}"
+    text = f"⛔ Бан выдан пользователю {_user_link(target)}"
     if reason:
         text += f"\nПричина: {reason}"
-    await update.message.reply_text(text)
+    await update.message.reply_text(text, parse_mode="HTML")
 
 
 async def unmute_user(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -156,7 +164,7 @@ async def unmute_user(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
         await update.message.reply_text(f"Не удалось снять мут: {e}")
         return
 
-    await update.message.reply_text(f"🔊 Мут снят с пользователя {target.id}")
+    await update.message.reply_text(f"🔊 Мут снят с пользователя {_user_link(target)}", parse_mode="HTML")
 
 
 async def warn_user(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -196,10 +204,10 @@ async def warn_user(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         until_at=None,
     )
 
-    text = f"⚠️ Предупреждение выдано пользователю {target.id}"
+    text = f"⚠️ Предупреждение выдано пользователю {_user_link(target)}"
     if reason:
         text += f"\nПричина: {reason}"
-    await update.message.reply_text(text)
+    await update.message.reply_text(text, parse_mode="HTML")
 
     try:
         dm = "Тебе выдано предупреждение администратором."
@@ -218,8 +226,9 @@ async def warn_user(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
             ]
         ])
         await update.message.reply_text(
-            f"⚠️ У пользователя {target.id} уже {warn_count} предупреждений.\n"
+            f"⚠️ У пользователя {_user_link(target)} уже {warn_count} предупреждений.\n"
             "Кикнуть за 3е предупреждение?",
+            parse_mode="HTML",
             reply_markup=markup,
         )
 
@@ -248,7 +257,7 @@ async def unwarn_user(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
             row = cur.fetchone()
             conn.close()
             if not row:
-                await update.message.reply_text(f"Пользователь @{username} не найден в чате")
+                await update.message.reply_text(f"Пользователь {mention} не найден в чате")
                 return
             uid = int(row[0])
             from telegram import User
@@ -272,10 +281,17 @@ async def unwarn_user(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
 
     warns = list_warns_for_user(s.sqlite_path, target.id)
     if not warns:
-        await update.message.reply_text(f"У пользователя {target.id} нет предупреждений")
+        label = target.first_name or (f"@{target.username}" if target.username else f"User {target.id}")
+        target_link = f'<a href="tg://user?id={target.id}">{label}</a>'
+        await update.message.reply_text(
+            f"У пользователя {target_link} нет предупреждений",
+            parse_mode="HTML",
+        )
         return
 
-    lines = [f"⚠️ Предупреждения пользователя {target.id}:", "───────────────────"]
+    label = target.first_name or (f"@{target.username}" if target.username else f"User {target.id}")
+    target_link = f'<a href="tg://user?id={target.id}">{label}</a>'
+    lines = [f"⚠️ Предупреждения пользователя {target_link}:", "───────────────────"]
     buttons = []
     for wid, reason, created_at in warns:
         reason_text = f"Причина: {reason}" if reason else "Без причины"
@@ -286,7 +302,7 @@ async def unwarn_user(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
         )])
 
     markup = InlineKeyboardMarkup(buttons)
-    await update.message.reply_text("\n".join(lines), reply_markup=markup)
+    await update.message.reply_text("\n".join(lines), parse_mode="HTML", reply_markup=markup)
 
 
 async def unwarn_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -316,7 +332,12 @@ async def unwarn_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     s = _settings(context)
     ok = remove_warn_by_id(s.sqlite_path, sanction_id, target_id)
     if ok:
-        await query.edit_message_text(f"✅ Предупреждение #{sanction_id} снято с пользователя {target_id}")
+        name = f"User {target_id}"
+        target_link = f'<a href="tg://user?id={target_id}">{name}</a>'
+        await query.edit_message_text(
+            f"✅ Предупреждение #{sanction_id} снято с пользователя {target_link}",
+            parse_mode="HTML",
+        )
     else:
         await query.edit_message_text(f"Не удалось снять предупреждение #{sanction_id}. Возможно, оно уже удалено.")
 
@@ -378,7 +399,8 @@ async def warn_kick_confirm(update: Update, context: ContextTypes.DEFAULT_TYPE) 
             until_at=None,
         )
         await query.edit_message_text(
-            f"👢 Пользователь {target_id} кикнут по причине: 3е предупреждение"
+            f"👢 Пользователь <a href=\"tg://user?id={target_id}\">User {target_id}</a> кикнут по причине: 3е предупреждение",
+            parse_mode="HTML",
         )
 
 
@@ -398,11 +420,8 @@ async def warn_list_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
 
     lines = ["⚠️ Список осужденных", "───────────────────"]
     for uid, username, first_name, cnt in rows:
-        label = (first_name or username or str(uid)).replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
-        if username:
-            lines.append(f"\n• @{username} — {cnt} пред.")
-        else:
-            lines.append(f'\n• <a href="tg://user?id={uid}">{label}</a> — {cnt} пред.')
+        label = (first_name or username or f"User {uid}").replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+        lines.append(f'\n• <a href="tg://user?id={uid}">{label}</a> — {cnt} пред.')
         warns = list_warns_for_user(s.sqlite_path, uid)
         for wid, reason, created_at in warns:
             reason_text = f"Причина: {reason}" if reason else "Без причины"

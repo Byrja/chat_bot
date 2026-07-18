@@ -2,6 +2,15 @@ __pycache__/
 *.py[cod]
 .venv/
 .env
+.env.bak
 data/*.db
+data/*.db-shm
+data/*.db-wal
 data/*.pkl
+data/*.pkl.bak-*
 .pytest_cache/
+logs/
+backups/
+*.bak
+*.bak.debug
+start_bot.sh

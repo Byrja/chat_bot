@@ -60,7 +60,12 @@ async def set_role_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         await update.message.reply_text("Не удалось сохранить роль")
         return
 
-    await update.message.reply_text(f"Роль для {target.id} обновлена: {_ROLE_RU.get(role, role)}")
+    name = target.first_name or (f"@{target.username}" if target.username else f"User {target.id}")
+    target_link = f'<a href="tg://user?id={target.id}">{name}</a>'
+    await update.message.reply_text(
+        f"Роль для {target_link} обновлена: {_ROLE_RU.get(role, role)}",
+        parse_mode="HTML",
+    )
 
 
 async def whois_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -77,4 +82,8 @@ async def whois_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
 
     role = "admin" if target.id in s.admin_user_ids else get_role(s.sqlite_path, target.id)
     label = target.first_name or (f"@{target.username}" if target.username else str(target.id))
-    await update.message.reply_text(f"Пользователь: {label}\nРоль: {_ROLE_RU.get(role, role)}")
+    target_link = f'<a href="tg://user?id={target.id}">{label}</a>'
+    await update.message.reply_text(
+        f"Пользователь: {target_link}\nРоль: {_ROLE_RU.get(role, role)}",
+        parse_mode="HTML",
+    )

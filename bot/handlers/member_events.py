@@ -4,6 +4,7 @@ from telegram.ext import ContextTypes
 from bot.config import Settings
 from bot.db import get_conn
 from bot.repositories.activity import ensure_member, update_member_name
+from bot.services.formatting import user_link_from_user
 from bot.services.rbac import invalidate_chat_admins
 
 
@@ -89,7 +90,7 @@ async def member_status_event(update: Update, context: ContextTypes.DEFAULT_TYPE
 
     if just_joined:
         who = _display_name(user)
-        await context.bot.send_message(chat_id=s.main_chat_id, text=f"👋 Добро пожаловать, {who}!")
+        await context.bot.send_message(chat_id=s.main_chat_id, text=f"👋 Добро пожаловать, {user_link_from_user(user)}!", parse_mode="HTML")
         ensure_member(s.sqlite_path, chat.id, user.id, user.username, user.first_name)
 
         packet = _latest_application_packet(s.sqlite_path, user.id)
@@ -108,10 +109,11 @@ async def member_status_event(update: Update, context: ContextTypes.DEFAULT_TYPE
                 text=(
                     "🧾 Анкета участника\n"
                     "───────────────────\n"
-                    f"Пользователь: {who} ({user.id})\n"
+                    f"Пользователь: {user_link_from_user(user)}\n"
                     "Анкета не заполнена\n\n"
                     "Заполнить/обновить анкету: в личке бота /start"
                 ),
+                parse_mode="HTML",
                 **kwargs,
             )
             return
@@ -128,7 +130,7 @@ async def member_status_event(update: Update, context: ContextTypes.DEFAULT_TYPE
             "🧾 Анкета участника\n"
             "───────────────────\n"
             f"Application ID: {app_id}\n"
-            f"User: {tg} ({user.id})\n"
+            f"User: {tg}\n"
             f"Статус: {status_ru}\n"
             f"Имя: {answers.get('name', '—')}\n"
             f"Район: {answers.get('district', '—')}\n"
@@ -139,11 +141,11 @@ async def member_status_event(update: Update, context: ContextTypes.DEFAULT_TYPE
         )
         photo_id = answers.get("photo_file_id")
         if photo_id:
-            await context.bot.send_photo(chat_id=s.main_chat_id, photo=photo_id, caption=text, **kwargs)
+            await context.bot.send_photo(chat_id=s.main_chat_id, photo=photo_id, caption=text, parse_mode="HTML", **kwargs)
         else:
-            await context.bot.send_message(chat_id=s.main_chat_id, text=text, **kwargs)
+            await context.bot.send_message(chat_id=s.main_chat_id, text=text, parse_mode="HTML", **kwargs)
         return
 
     if just_left:
         who = _display_name(user)
-        await context.bot.send_message(chat_id=s.main_chat_id, text=f"👋 {who}, удачи! Если что — возвращайся.")
+        await context.bot.send_message(chat_id=s.main_chat_id, text=f"👋 {user_link_from_user(user)}, удачи! Если что — возвращайся.", parse_mode="HTML")

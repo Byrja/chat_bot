@@ -28,4 +28,5 @@ def command_list() -> list[BotCommand]:
         BotCommand("ban", "Забанить пользователя (reply)"),
         BotCommand("all", "Тегнуть всех участников"),
         BotCommand("days_without_drama", "Дни без драмы"),
+        BotCommand("profile", "Профиль участника"),
     ]

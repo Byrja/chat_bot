@@ -76,6 +76,26 @@ def get_top_activity(db_path: str, chat_id: int, limit: int = 20):
     return rows
 
 
+def get_asleep_activity(db_path: str, chat_id: int, limit: int = 20):
+    """Пользователи, которые дольше всех не пишут (last_message_at самый старый)."""
+    conn = get_conn(db_path)
+    cur = conn.cursor()
+    cur.execute(
+        """
+        SELECT tg_user_id, COALESCE(username, ''), COALESCE(first_name, ''), msg_count, last_message_at
+        FROM member_activity
+        WHERE chat_id = ?
+          AND last_message_at IS NOT NULL
+        ORDER BY datetime(last_message_at) ASC
+        LIMIT ?
+        """,
+        (chat_id, limit),
+    )
+    rows = cur.fetchall()
+    conn.close()
+    return rows
+
+
 def get_today_activity(db_path: str, chat_id: int, limit: int = 20):
     conn = get_conn(db_path)
     cur = conn.cursor()

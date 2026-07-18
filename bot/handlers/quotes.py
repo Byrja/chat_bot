@@ -31,7 +31,7 @@ async def save_quote(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
     author = src.from_user
     label = "unknown"
     if author:
-        label = f"@{author.username}" if author.username else (author.first_name or str(author.id))
+        label = author.first_name or (f"@{author.username}" if author.username else str(author.id))
 
     s = _settings(context)
     qid = add_quote(
@@ -202,7 +202,7 @@ async def quotes_view_callback(update: Update, context: ContextTypes.DEFAULT_TYP
             text += f"\n\n🔗 {link}"
 
         markup = InlineKeyboardMarkup([
-            [InlineKeyboardButton("🗑 Удалить", callback_data=f"quote_del_{qid}")],
+            [InlineKeyboardButton("🗑 Удалить", callback_data=f"quote_del_ask_{qid}")],
             [InlineKeyboardButton("⬅️ Назад к списку", callback_data=f"quote_page_{page}")],
         ])
         await query.edit_message_text(text, reply_markup=markup, disable_web_page_preview=True)
@@ -230,8 +230,23 @@ async def quotes_delete_callback(update: Update, context: ContextTypes.DEFAULT_T
         if not data.startswith("quote_del_"):
             return
 
+        suffix = data[len("quote_del_"):]
+        if suffix.startswith("ask_"):
+            qid = int(suffix[4:])
+            markup = InlineKeyboardMarkup([
+                [
+                    InlineKeyboardButton("✅ Да, удалить", callback_data=f"quote_del_{qid}"),
+                    InlineKeyboardButton("❌ Отмена", callback_data=f"quote_view_{qid}_0"),
+                ]
+            ])
+            await query.edit_message_text(
+                f"Удалить цитату #{qid}? Действие необратимо.",
+                reply_markup=markup,
+            )
+            return
+
         try:
-            qid = int(data.split("_")[-1])
+            qid = int(suffix)
         except (IndexError, ValueError):
             await query.edit_message_text("Ошибка: некорректный ID цитаты")
             return
