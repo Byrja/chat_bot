@@ -150,7 +150,7 @@ def build_app(settings: Settings) -> Application:
     app.add_handler(CommandHandler("horoscope", horoscope))
     app.add_handler(CommandHandler("mod", mod_panel))
     app.add_handler(CallbackQueryHandler(menu_action, pattern=r"^menu:(home|stats|activity|activity_all|activity_day|activity_week|activity_month|pairs|pairs_all|pairs_week|drama_days|fun|social|social_ff_stats|social_ff_top|social_karma_me|social_karma_top|social_relation_help|fun_bottle|fun_horoscope|fun_quote_random|fun_quote_latest|fun_hipish|fun_hipish_do|mod|mod_roles|mod_warnlist|mod_quoteslist|settings|settings_muteme15|settings_bday|settings_bday_clear|settings_editform|settings_kick_confirm|settings_kick_do):[0-9]+$"))
-    app.add_handler(CallbackQueryHandler(mod_profile_handler, pattern=r"^modprofile:(list|view|role|warnask|mute30|banask|notes|noteask):[0-9]+(:[0-9]+(:[a-z]+)?)?$"))
+    app.add_handler(CallbackQueryHandler(mod_profile_handler, pattern=r"^modprofile:(list|view|role|warnask|muteask|mute|banask|notes|noteask):[0-9]+(:[0-9]+(:[a-z0-9]+)?)?$"))
     app.add_handler(CommandHandler("mod_cancel", mod_profile_cancel_command))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND & filters.ChatType.GROUPS, mod_profile_text_input))
     app.add_handler(CallbackQueryHandler(mod_quick_ask_reason, pattern=r"^modquickask:(warn|mute30|ban):[0-9]+:[0-9]+$"))

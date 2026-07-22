@@ -43,9 +43,11 @@ async def is_chat_admin_cmd(
       1) settings.admin_user_ids (owner / Саша)
       2) Telegram get_chat_administrators() — реальные админы чата, кэш 5 мин
 
-    Возвращает False если бот не админ чата / нет доступа / нет данных.
+    Возвращает False если бот не админ чата / нет доступа / нет данных / user в blocked.
     """
     s = _settings(context)
+    if user_id in s.blocked_user_ids:
+        return False
     if user_id in s.admin_user_ids:
         return True
 
@@ -80,6 +82,8 @@ def is_chat_admin_cached(
     вернёт False, чтобы не ломать UX лишними API-вызовами в hot-path.
     """
     s = _settings(context)
+    if user_id in s.blocked_user_ids:
+        return False
     if user_id in s.admin_user_ids:
         return True
     if chat_id is None:

@@ -1,3 +1,5 @@
+import sqlite3
+
 from bot.db import get_conn
 
 
@@ -33,9 +35,30 @@ def bump_message_activity(
     tg_user_id: int,
     username: str | None,
     first_name: str | None,
+    msg_type: str = "text",
+    message_id: int | None = None,
 ) -> None:
     conn = get_conn(db_path)
     cur = conn.cursor()
+    # Сначала пробуем вставить строку в member_messages — UNIQUE INDEX защищает
+    # от дублей Telegram-Update'ов (если бот получит один и тот же message_id
+    # дважды — например, после рестарта).
+    try:
+        cur.execute(
+            """
+            INSERT INTO member_messages (chat_id, tg_user_id, msg_type, message_id)
+            VALUES (?, ?, ?, ?)
+            """,
+            (chat_id, tg_user_id, msg_type, message_id),
+        )
+    except sqlite3.IntegrityError:
+        # Этот message_id уже записан (дубль от Telegram после рестарта) — выходим,
+        # не инкрементируя msg_count. Иначе бот бы считал одно сообщение дважды.
+        conn.rollback()
+        conn.close()
+        return
+
+    # Только если новая строка реально добавлена — инкрементируем счётчик.
     cur.execute(
         """
         INSERT INTO member_activity (chat_id, tg_user_id, username, first_name, msg_count, last_message_at, updated_at)
@@ -49,10 +72,6 @@ def bump_message_activity(
             updated_at=CURRENT_TIMESTAMP
         """,
         (chat_id, tg_user_id, username or None, first_name or None),
-    )
-    cur.execute(
-        "INSERT INTO member_messages (chat_id, tg_user_id) VALUES (?, ?)",
-        (chat_id, tg_user_id),
     )
     conn.commit()
     conn.close()

@@ -15,12 +15,62 @@ from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 
 # --- User links ----------------------------------------------------------
 
+def _is_displayable(name: str) -> bool:
+    """Return True if `name` has at least one visible character.
+
+    Rejects empty, whitespace-only, and pure-invisible strings (Hangul
+    fillers, zero-width / bidi control / BOM). Emoji and CJK are allowed
+    — they're real names in Telegram (🦀Анна, 张伟, 🦀🦀).
+    """
+    if not name:
+        return False
+    stripped = name.strip()
+    if not stripped:
+        return False
+    # Block invisible / zero-width / bidi control code points.
+    invisible = {
+        "\u3164",  # HANGUL FILLER (the "ㅤ" trick)
+        "\u115F",  # HANGUL CHOSEONG FILLER
+        "\u1160",  # HANGUL JUNGSEONG FILLER
+        "\u200B",  # ZERO WIDTH SPACE
+        "\u200C",  # ZERO WIDTH NON-JOINER
+        "\u200D",  # ZERO WIDTH JOINER
+        "\u200E",  # LEFT-TO-RIGHT MARK
+        "\u200F",  # RIGHT-TO-LEFT MARK
+        "\u202A", "\u202B", "\u202C", "\u202D", "\u202E",  # bidi controls
+        "\u2060",  # WORD JOINER
+        "\uFEFF",  # ZERO WIDTH NO-BREAK SPACE / BOM
+    }
+    if all(ch in invisible for ch in stripped):
+        return False
+    return True
+
+
+def _display_name(first_name: str, username: str, uid: int) -> str:
+    """Pick a sensible display name with a chain of fallbacks.
+
+    1) first_name (if it has visible glyphs)
+    2) @username (if present)
+    3) "id{uid}"
+    """
+    if _is_displayable(first_name):
+        return first_name
+    if username:
+        return f"@{username}"
+    return f"id{uid}"
+
+
 def user_link_from_parts(first_name: str, username: str, uid: int) -> str:
     """HTML tg://user?id=UID link from raw DB fields (username, first_name, uid).
 
     Returns `<a href="tg://user?id=UID">display_name</a>`.
+
+    Display-name resolution:
+    - first_name if it has visible glyphs
+    - else @username
+    - else `id{uid}`
     """
-    name = first_name or (f"@{username}" if username else f"User {uid}")
+    name = _display_name(first_name, username, uid)
     name = html.escape(name)
     return f'<a href="tg://user?id={uid}">{name}</a>'
 
@@ -142,14 +192,17 @@ def human_date(dt_str: str | None) -> str:
 
 
 def is_valid_name(first_name: str, username: str) -> bool:
-    """Reject empty, zero-width, all-whitespace names."""
+    """Reject empty, zero-width, all-whitespace, invisible-only, emoji-only names.
+
+    Such names produce blank labels in the activity top list. Callers should
+    fall back to the @username / id{uid} display in that case.
+    """
     name = (first_name or "").strip()
     if not name:
         name = (username or "").strip().lstrip("@")
     if not name:
         return False
-    cleaned = "".join(ch for ch in name if (ch.isprintable() and not ch.isspace()) or ch in " -")
-    return len(cleaned) > 0
+    return _is_displayable(name)
 
 
 def days_silent(last_at: str | None) -> str:

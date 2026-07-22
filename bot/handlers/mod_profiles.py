@@ -112,7 +112,7 @@ def _profile_markup(uid: int, issuer_id: int, current_role: str) -> InlineKeyboa
     ])
     rows.append([
         InlineKeyboardButton("⚠️ Варн", callback_data=f"modprofile:warnask:{uid}:{issuer_id}"),
-        InlineKeyboardButton("🔇 Мут 30м", callback_data=f"modprofile:mute30:{uid}:{issuer_id}"),
+        InlineKeyboardButton("🔇 Мут", callback_data=f"modprofile:muteask:{uid}:{issuer_id}"),
         InlineKeyboardButton("⛔ Бан", callback_data=f"modprofile:banask:{uid}:{issuer_id}"),
     ])
     rows.append([
@@ -222,9 +222,29 @@ async def mod_profile_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
             )
             return
 
-        if action == "mute30":
+        if action == "muteask":
             uid = int(parts[2])
-            await _apply_mute(update, context, uid, "30")
+            summary = get_member_summary(s.sqlite_path, s.main_chat_id, uid)
+            target_link = _user_link_html(uid, summary.get("first_name", ""), summary.get("username", ""))
+            durations = [
+                ("30 мин", "30"), ("1 час", "1h"), ("6 часов", "6h"),
+                ("1 день", "1d"), ("7 дней", "7d"),
+            ]
+            kb = InlineKeyboardMarkup([
+                [InlineKeyboardButton(label, callback_data=f"modprofile:mute:{uid}:{issuer_id}:{dur}")]
+                for label, dur in durations
+            ] + [[InlineKeyboardButton("⬅️ К профилю", callback_data=f"modprofile:view:{uid}:{issuer_id}")]])
+            await query.edit_message_text(
+                f"🔇 Выбери длительность мута для {target_link}:",
+                parse_mode="HTML",
+                reply_markup=kb,
+            )
+            return
+
+        if action == "mute":
+            uid = int(parts[2])
+            duration_text = parts[4] if len(parts) > 4 else "30"
+            await _apply_mute(update, context, uid, duration_text)
             return
 
         if action == "banask":

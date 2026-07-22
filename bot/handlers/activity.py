@@ -1,4 +1,5 @@
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
+from collections import defaultdict
 
 from telegram import Update
 from telegram.ext import ContextTypes
@@ -13,6 +14,14 @@ from bot.services.formatting import (
     user_link_from_parts,
 )
 from bot.services.rbac import has_permission
+
+# In-memory anti-flood: track last message timestamp per user per chat.
+# If two messages from the same user arrive within FLOOD_WINDOW seconds, only
+# the first one counts as activity — the rest are "flood" and ignored.
+# This is what makes the counter visually match what humans see in the chat:
+# a tight cluster of updates (bot, userbot, or "rapid-fire replies") becomes 1.
+FLOOD_WINDOW_SEC = 5
+_last_msg_at: dict[tuple[int, int], datetime] = {}
 
 
 def _settings(context: ContextTypes.DEFAULT_TYPE) -> Settings:
@@ -39,6 +48,43 @@ async def track_message_activity(update: Update, context: ContextTypes.DEFAULT_T
         return
     if msg.text and msg.text.startswith("/"):
         return
+    # Антифлуд: стикеры, GIF, dice, кружочки и игры не считаются "сообщениями"
+    # (иначе userbot-спам стикерами кладёт обычных юзеров в топ).
+    if msg.sticker or msg.animation or msg.dice or msg.video_note or msg.game:
+        return
+
+    # Антифлуд-2: если юзер прислал < FLOOD_WINDOW_SEC назад — игнорируем.
+    # Превращает "15 сообщ/мин" (бот, userbot, бешеный набор стикеров) в 1.
+    # Счётчик теперь совпадает с тем, что человек видит глазами в чате.
+    now = datetime.now(timezone.utc)
+    key = (update.effective_chat.id, update.effective_user.id)
+    last = _last_msg_at.get(key)
+    if last is not None and (now - last).total_seconds() < FLOOD_WINDOW_SEC:
+        return  # флуд — не считаем
+    _last_msg_at[key] = now
+
+    # msg_type для диагностики аномалий в будущем.
+    # Сейчас после фильтра выше сюда попадают только текст/фото/видео/voice/документ.
+    if msg.text or msg.caption:
+        msg_type = "text"
+    elif msg.photo:
+        msg_type = "photo"
+    elif msg.video:
+        msg_type = "video"
+    elif msg.voice:
+        msg_type = "voice"
+    elif msg.document:
+        msg_type = "document"
+    elif msg.audio:
+        msg_type = "audio"
+    elif msg.poll:
+        msg_type = "poll"
+    elif msg.location or msg.venue:
+        msg_type = "location"
+    elif msg.contact:
+        msg_type = "contact"
+    else:
+        msg_type = "other"
 
     bump_message_activity(
         s.sqlite_path,
@@ -46,6 +92,8 @@ async def track_message_activity(update: Update, context: ContextTypes.DEFAULT_T
         tg_user_id=update.effective_user.id,
         username=update.effective_user.username,
         first_name=update.effective_user.first_name,
+        msg_type=msg_type,
+        message_id=msg.message_id,
     )
 
     if msg.reply_to_message and msg.reply_to_message.from_user and not msg.reply_to_message.from_user.is_bot:
