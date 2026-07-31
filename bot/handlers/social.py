@@ -314,6 +314,12 @@ async def bottle_result_action(update: Update, context: ContextTypes.DEFAULT_TYP
         await query.edit_message_text("Эта игра уже закрыта или недоступна")
         return
 
+    # Clean up lobby so the next /bottle works
+    lobby_key = f"bottle_lobby:{update.effective_chat.id}"
+    context.application.bot_data.pop(lobby_key, None)
+    ts_key = f"bottle_last_ts:{update.effective_chat.id}"
+    context.application.bot_data.pop(ts_key, None)
+
     _giver_uid_db, performer_uid_db = resolved
     delta = 10 if action == "done" else -10
     apply_karma(s.sqlite_path, update.effective_chat.id, 0, performer_uid_db, delta, reason="bottle_game")
