@@ -34,6 +34,7 @@ from bot.handlers.chat_events import on_my_chat_member
 from bot.handlers.member_events import member_status_event
 from bot.handlers.menu import menu_action, show_menu
 from bot.handlers.mod_panel import mod_panel, mod_quick_ask_reason, mod_quick_action, mod_cancel_action
+from bot.handlers.summary import summary_command
 from bot.handlers.mod_profiles import (
     mod_profile_cancel_command,
     mod_profile_handler,
@@ -138,6 +139,7 @@ def build_app(settings: Settings) -> Application:
     app.add_handler(CommandHandler("whois", whois_command))
     app.add_handler(CommandHandler("profile", profile_command))
     app.add_handler(CommandHandler("activity", show_activity))
+    app.add_handler(CommandHandler("summary", summary_command))
     app.add_handler(CommandHandler("top_pairs", show_top_pairs))
     app.add_handler(CommandHandler("top_week", show_top_week))
     app.add_handler(CommandHandler("today_top", show_today_top))

@@ -37,6 +37,7 @@ def bump_message_activity(
     first_name: str | None,
     msg_type: str = "text",
     message_id: int | None = None,
+    text: str | None = None,
 ) -> None:
     conn = get_conn(db_path)
     cur = conn.cursor()
@@ -46,10 +47,10 @@ def bump_message_activity(
     try:
         cur.execute(
             """
-            INSERT INTO member_messages (chat_id, tg_user_id, msg_type, message_id)
-            VALUES (?, ?, ?, ?)
+            INSERT INTO member_messages (chat_id, tg_user_id, msg_type, message_id, text)
+            VALUES (?, ?, ?, ?, ?)
             """,
-            (chat_id, tg_user_id, msg_type, message_id),
+            (chat_id, tg_user_id, msg_type, message_id, text),
         )
     except sqlite3.IntegrityError:
         # Этот message_id уже записан (дубль от Telegram после рестарта) — выходим,

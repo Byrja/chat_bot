@@ -8,6 +8,7 @@ def command_list() -> list[BotCommand]:
         BotCommand("edit_profile", "Редактировать анкету"),
         BotCommand("about", "Полный список команд"),
         BotCommand("activity", "Топ самых активных (всё время)"),
+        BotCommand("summary", "ИИ-саммари последних сообщений"),
         BotCommand("today_top", "Топ самых активных (за сутки)"),
         BotCommand("top_week", "Топ самых активных (7 дней)"),
         BotCommand("top_pairs", "Топ пар по reply"),

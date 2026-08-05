@@ -94,6 +94,7 @@ async def track_message_activity(update: Update, context: ContextTypes.DEFAULT_T
         first_name=update.effective_user.first_name,
         msg_type=msg_type,
         message_id=msg.message_id,
+        text=(msg.text or msg.caption or None),
     )
 
     if msg.reply_to_message and msg.reply_to_message.from_user and not msg.reply_to_message.from_user.is_bot:
