@@ -158,3 +158,20 @@ def save_answer(db_path: str, application_id: int, question_code: str, answer_te
     )
     conn.commit()
     conn.close()
+
+
+def copy_application_answers(db_path: str, from_app_id: int, to_app_id: int) -> None:
+    """Копирует все ответы из одной анкеты в другую (используется при редактировании)."""
+    conn = get_conn(db_path)
+    cur = conn.cursor()
+    cur.execute(
+        """
+        INSERT INTO application_answers (application_id, question_code, answer_text, position)
+        SELECT ?, question_code, answer_text, position
+        FROM application_answers
+        WHERE application_id = ?
+        """,
+        (to_app_id, from_app_id),
+    )
+    conn.commit()
+    conn.close()

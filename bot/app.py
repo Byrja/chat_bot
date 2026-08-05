@@ -14,6 +14,7 @@ from bot.handlers.questionnaire import (
     WAIT_PREVIEW,
     WAIT_REJECT_REASON,
     WAIT_REJECT_CONFIRM,
+    edit_profile_start,
     moderation_action,
     preview_action,
     questionnaire_cancel,
@@ -96,6 +97,23 @@ def build_app(settings: Settings) -> Application:
     )
 
     app.add_handler(flow)
+
+    edit_flow = ConversationHandler(
+        entry_points=[CommandHandler("edit_profile", edit_profile_start)],
+        states={
+            WAIT_NAME: [MessageHandler(filters.TEXT & ~filters.COMMAND, receive_name)],
+            WAIT_DISTRICT: [MessageHandler(filters.TEXT & ~filters.COMMAND, receive_district)],
+            WAIT_AGE: [MessageHandler(filters.TEXT & ~filters.COMMAND, receive_age)],
+            WAIT_HOBBY: [MessageHandler(filters.TEXT & ~filters.COMMAND, receive_hobby)],
+            WAIT_ALCOHOL: [CallbackQueryHandler(receive_alcohol_choice, pattern=r"^alc:(yes|no|social)$")],
+            WAIT_AVAILABILITY: [MessageHandler(filters.TEXT & ~filters.COMMAND, receive_availability)],
+            WAIT_PHOTO: [MessageHandler(filters.PHOTO | (filters.TEXT & ~filters.COMMAND), receive_photo)],
+            WAIT_PREVIEW: [CallbackQueryHandler(preview_action, pattern=r"^app:(edit|submit)$")],
+        },
+        fallbacks=[CommandHandler("cancel", questionnaire_cancel)],
+        allow_reentry=True,
+    )
+    app.add_handler(edit_flow)
 
     mod_flow = ConversationHandler(
         entry_points=[CallbackQueryHandler(moderation_action, pattern=r"^mod:(approve|reject):[0-9]+$")],

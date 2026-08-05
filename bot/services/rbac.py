@@ -20,7 +20,7 @@ def _settings(context: ContextTypes.DEFAULT_TYPE) -> Settings:
 
 def _cache(context: ContextTypes.DEFAULT_TYPE) -> dict:
     cache = context.application.bot_data.get(_TG_ADMINS_KEY)
-    if cache is None:
+    if cache is None or not isinstance(cache, dict):
         cache = {}
         context.application.bot_data[_TG_ADMINS_KEY] = cache
     return cache

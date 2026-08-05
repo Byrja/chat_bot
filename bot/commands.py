@@ -5,6 +5,7 @@ def command_list() -> list[BotCommand]:
     return [
         BotCommand("menu", "Открыть главное меню"),
         BotCommand("start", "Заполнить анкету"),
+        BotCommand("edit_profile", "Редактировать анкету"),
         BotCommand("about", "Полный список команд"),
         BotCommand("activity", "Топ самых активных (всё время)"),
         BotCommand("today_top", "Топ самых активных (за сутки)"),

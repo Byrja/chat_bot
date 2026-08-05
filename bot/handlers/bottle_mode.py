@@ -22,19 +22,19 @@ async def bottle_mode_action(update: Update, context: ContextTypes.DEFAULT_TYPE)
 
     actor_uid = int(actor_s)
 
-    key = f"bottle_last_ts:{update.effective_chat.id}"
     import time
     now = time.time()
 
-    # Always clean up any stale lobby state
-    key = f"bottle_last_ts:{update.effective_chat.id}"
+    ts_key = f"bottle_last_ts:{update.effective_chat.id}"
     lobby_key = f"bottle_lobby:{update.effective_chat.id}"
-    for key in list(context.application.bot_data.keys()):
-        if "bottle" in str(key).lower():
-            context.application.bot_data.pop(key, None)
+
+    # Always clean up any stale lobby state
+    for k in list(context.application.bot_data.keys()):
+        if "bottle" in str(k).lower():
+            context.application.bot_data.pop(k, None)
     logging.info("BOTTLE_MODE: cleaned all bottle keys")
 
-    context.application.bot_data[key] = now
+    context.application.bot_data[ts_key] = now
     context.application.bot_data[lobby_key] = {"actor_uid": actor_uid, "started_at": now, "mode": mode}
 
     kb = InlineKeyboardMarkup([

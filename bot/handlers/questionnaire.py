@@ -3,6 +3,7 @@ from telegram.ext import ContextTypes, ConversationHandler
 
 from bot.config import Settings
 from bot.repositories.applications import (
+    copy_application_answers,
     count_submitted_today,
     get_answers_map,
     get_application_for_admin,
@@ -52,6 +53,49 @@ async def questionnaire_start(update: Update, context: ContextTypes.DEFAULT_TYPE
     context.user_data["application_id"] = app_id
 
     await update.message.reply_text("Анкета МДЧ\nВопрос 1/7: Как тебя зовут?")
+    return WAIT_NAME
+
+
+async def edit_profile_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Позволяет отредактировать анкету уже существующего участника.
+    Копирует ответы из последней отправленной заявки в новый draft и перезапускает анкету.
+    Работает только в личной переписке (private chat).
+    """
+    if not update.message or not update.effective_user or not update.effective_chat:
+        return ConversationHandler.END
+
+    if update.effective_chat.type != "private":
+        bot_username = context.bot.username or "MD4_byrbot"
+        await update.message.reply_text(
+            "Редактировать анкету можно только в личке с ботом.\n"
+            f"Открой: https://t.me/{bot_username}?start=edit"
+        )
+        return ConversationHandler.END
+
+    s = _settings(context)
+    user = update.effective_user
+    uid = user.id
+
+    from bot.repositories.applications import get_latest_application_for_user
+    latest = get_latest_application_for_user(s.sqlite_path, uid)
+    if not latest:
+        await update.message.reply_text(
+            "У тебя пока нет анкеты. Создай командой /start"
+        )
+        return ConversationHandler.END
+
+    old_app_id, old_status, answers = latest
+
+    # Создаём новый draft для редактирования
+    new_app_id = get_or_create_draft_application(s.sqlite_path, uid)
+    copy_application_answers(s.sqlite_path, old_app_id, new_app_id)
+    context.user_data["application_id"] = new_app_id
+
+    await update.message.reply_text(
+        "✏️ Редактирование анкеты\n\n"
+        "Вопрос 1/7: Как тебя зовут?\n"
+        f"Текущий ответ: {answers.get('name', '—')}"
+    )
     return WAIT_NAME
 
 
@@ -190,6 +234,15 @@ async def preview_action(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 
     data = query.data or ""
     if data == "app:edit":
+        # Вместо переиспользования старого ID создаём новый draft
+        s = _settings(context)
+        old_app_id = int(context.user_data.get("application_id", 0) or 0)
+        uid = update.effective_user.id if update.effective_user else 0
+        if uid and old_app_id:
+            new_app_id = get_or_create_draft_application(s.sqlite_path, uid)
+            copy_application_answers(s.sqlite_path, old_app_id, new_app_id)
+            context.user_data["application_id"] = new_app_id
+
         await query.edit_message_text("Ок, давай обновим анкету с начала ✏️")
         if query.message:
             await query.message.reply_text("Вопрос 1/8: Как тебя зовут?")
