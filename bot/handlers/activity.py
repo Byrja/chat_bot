@@ -14,6 +14,7 @@ from bot.services.formatting import (
     user_link_from_parts,
 )
 from bot.services.rbac import has_permission
+from bot.handlers.summary import summary_text_trigger
 
 # In-memory anti-flood: track last message timestamp per user per chat.
 # If two messages from the same user arrive within FLOOD_WINDOW seconds, only
@@ -47,6 +48,10 @@ async def track_message_activity(update: Update, context: ContextTypes.DEFAULT_T
     if not msg:
         return
     if msg.text and msg.text.startswith("/"):
+        return
+    # Текстовый триггер саммари
+    if msg.text and msg.text.lower().strip().rstrip("?") in ("бот чо было", "бот, чо было"):
+        await summary_text_trigger(update, context)
         return
     # Антифлуд: стикеры, GIF, dice, кружочки и игры не считаются "сообщениями"
     # (иначе userbot-спам стикерами кладёт обычных юзеров в топ).

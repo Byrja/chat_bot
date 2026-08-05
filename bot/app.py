@@ -34,7 +34,7 @@ from bot.handlers.chat_events import on_my_chat_member
 from bot.handlers.member_events import member_status_event
 from bot.handlers.menu import menu_action, show_menu
 from bot.handlers.mod_panel import mod_panel, mod_quick_ask_reason, mod_quick_action, mod_cancel_action
-from bot.handlers.summary import summary_command, summary_text_trigger
+from bot.handlers.summary import summary_command
 from bot.handlers.mod_profiles import (
     mod_profile_cancel_command,
     mod_profile_handler,
@@ -187,7 +187,6 @@ def build_app(settings: Settings) -> Application:
     app.add_handler(MessageHandler(filters.Regex(r"^\d{1,2}\.\d{1,2}$"), capture_birthdate_input))
     app.add_handler(CommandHandler("mute_me", mute_me))
     app.add_handler(CommandHandler("hipish", hipish))
-    app.add_handler(MessageHandler(filters.ChatType.GROUPS & filters.TEXT & ~filters.COMMAND, summary_text_trigger))
     app.add_handler(MessageHandler(filters.ChatType.GROUPS & ~filters.COMMAND, track_message_activity))
     app.add_handler(ChatMemberHandler(member_status_event, ChatMemberHandler.CHAT_MEMBER))
     app.add_handler(ChatMemberHandler(on_my_chat_member, ChatMemberHandler.MY_CHAT_MEMBER))
