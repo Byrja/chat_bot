@@ -19,6 +19,15 @@ def _can_activity(update: Update, context: ContextTypes.DEFAULT_TYPE) -> bool:
     return has_permission(s, s.sqlite_path, user.id, "activity")
 
 
+SYSTEM_PROMPT = (
+    "Ты — MD4, резкий Telegram-бот чата. "
+    "Перескажи, что обсуждали участники, в стиле за кухонным столом: сарказм, ирония, мемы, "
+    "местами мат разрешён, но без токсичности, угроз и разжигания ненависти. "
+    "Не придумывай факты и не комментируй то, чего не было в сообщениях. "
+    "Не более 400 слов."
+)
+
+
 async def _do_summary(
     update: Update,
     context: ContextTypes.DEFAULT_TYPE,
@@ -53,17 +62,12 @@ async def _do_summary(
         name = m.get("first_name") or f"User{m['tg_user_id']}"
         lines.append(f"{name}: {m['text']}")
 
-    prompt = (
-        "Ты — дерзкий, циничный, но по-своему обаятельный бот чата MD4. "
-        "Веди сводку активности в грубом, матершинном, но смешном стиле. "
-        "Как будто ты сидишь с пацанами на кухне и пересказываешь, что творилось в чате. "
-        "Не цензурь себя, используй мат по полной. "
-        "Кто о чём говорил, кого послали нахуй, какие темы поднимались, "
-        "какие драмы разгорелись, кто кого заебал. Не более 400 слов.\n\n"
-        + "\n".join(lines)
+    result = complete_text(
+        prompt="\n".join(lines),
+        system_prompt=SYSTEM_PROMPT,
+        max_tokens=2000,
+        temperature=0.9,
     )
-
-    result = complete_text(prompt, max_tokens=500, temperature=0.9)
 
     if not result:
         await update.effective_chat.send_message(

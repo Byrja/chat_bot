@@ -187,7 +187,9 @@ def build_app(settings: Settings) -> Application:
     app.add_handler(MessageHandler(filters.Regex(r"^\d{1,2}\.\d{1,2}$"), capture_birthdate_input))
     app.add_handler(CommandHandler("mute_me", mute_me))
     app.add_handler(CommandHandler("hipish", hipish))
-    app.add_handler(MessageHandler(filters.ChatType.GROUPS & ~filters.COMMAND, track_message_activity))
+    # Track all group messages first (lowest group), so activity/summary text
+    # capture happens even when a later handler consumes the update.
+    app.add_handler(MessageHandler(filters.ChatType.GROUPS & ~filters.COMMAND, track_message_activity), group=-1)
     app.add_handler(ChatMemberHandler(member_status_event, ChatMemberHandler.CHAT_MEMBER))
     app.add_handler(ChatMemberHandler(on_my_chat_member, ChatMemberHandler.MY_CHAT_MEMBER))
     app.add_handler(CommandHandler("health", health))

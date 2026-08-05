@@ -6,50 +6,84 @@ from urllib.error import HTTPError, URLError
 
 
 def llm_enabled() -> bool:
-    return bool(os.getenv("OPENROUTER_API_KEY", "").strip())
+    return bool(os.getenv("WORMSOFT_API_KEY", "").strip())
 
 
 def _build_headers() -> dict[str, str]:
-    key = os.getenv("OPENROUTER_API_KEY", "").strip()
+    key = os.getenv("WORMSOFT_API_KEY", "").strip()
     return {
         "Authorization": f"Bearer {key}",
         "Content-Type": "application/json",
-        "HTTP-Referer": os.getenv("OPENROUTER_REFERRER", "https://github.com/Byrja/chat_bot"),
-        "X-Title": os.getenv("OPENROUTER_APP_NAME", "MD4"),
     }
 
 
-def complete_text(prompt: str, max_tokens: int = 180, temperature: float = 0.7) -> Optional[str]:
-    key = os.getenv("OPENROUTER_API_KEY", "").strip()
-    if not key:
-        return None
+def _model_chain() -> list[str]:
+    primary = os.getenv("WORMSOFT_MODEL", "qwen/qwen3.6:35b-a3b").strip()
+    fallbacks = [
+        m.strip()
+        for m in os.getenv("WORMSOFT_FALLBACK_MODELS", "deepseek-ai/deepseek-v4-pro,kimi/kimi-k2.7-code").split(",")
+        if m.strip()
+    ]
+    models = [primary]
+    for m in fallbacks:
+        if m not in models:
+            models.append(m)
+    return models
 
-    model = os.getenv("OPENROUTER_MODEL", "openai/gpt-oss-20b:free").strip()
+
+def _call_model(
+    model: str,
+    messages: list[dict[str, str]],
+    max_tokens: int,
+    temperature: float,
+    top_p: float,
+    timeout: float,
+) -> Optional[str]:
     payload = {
         "model": model,
-        "messages": [
-            {"role": "system", "content": "Отвечай кратко, дружелюбно, на русском. Без токсичности и без запрещённого контента."},
-            {"role": "user", "content": prompt},
-        ],
+        "messages": messages,
         "max_tokens": max_tokens,
         "temperature": temperature,
+        "top_p": top_p,
     }
-
     req = request.Request(
-        "https://openrouter.ai/api/v1/chat/completions",
+        "https://ai.wormsoft.ru/api/gpt/v1/chat/completions",
         data=json.dumps(payload).encode("utf-8"),
         headers=_build_headers(),
         method="POST",
     )
-
     try:
-        with request.urlopen(req, timeout=22) as resp:
+        with request.urlopen(req, timeout=timeout) as resp:
             data = json.loads(resp.read().decode("utf-8"))
         text = data["choices"][0]["message"]["content"].strip()
-        if not text:
-            return None
-        if len(text) > 900:
-            text = text[:900]
-        return text
+        return text if text else None
     except (HTTPError, URLError, TimeoutError, KeyError, json.JSONDecodeError):
         return None
+
+
+def complete_text(
+    prompt: str,
+    system_prompt: Optional[str] = None,
+    max_tokens: int = 1000,
+    temperature: float = 0.7,
+    top_p: float = 1.0,
+    timeout: float = 35.0,
+) -> Optional[str]:
+    if not llm_enabled():
+        return None
+
+    messages: list[dict[str, str]] = []
+    if system_prompt:
+        messages.append({"role": "system", "content": system_prompt})
+    messages.append({"role": "user", "content": prompt})
+
+    last_error_text: Optional[str] = None
+    for model in _model_chain():
+        text = _call_model(model, messages, max_tokens, temperature, top_p, timeout)
+        if text:
+            # Telegram text message limit is ~4096; keep a safety margin.
+            if len(text) > 3800:
+                text = text[:3797] + "..."
+            return text
+
+    return None
